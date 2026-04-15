@@ -27,4 +27,4 @@ def setup_logging(level: str = "INFO") -> None:
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("replicate").setLevel(logging.WARNING)
 
-    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)

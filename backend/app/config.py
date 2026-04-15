@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # --- Replicate API ---
     REPLICATE_API_TOKEN: str = ""
-    REPLICATE_MODEL: str = "stability-ai/sdxl"
+    REPLICATE_MODEL: str = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
 
     # --- OpenAI / LLM ---
     OPENAI_API_KEY: str = ""

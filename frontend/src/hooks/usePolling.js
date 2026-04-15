@@ -1,9 +1,14 @@
 import { useEffect, useRef, useCallback } from "react";
 
-// Hook generique de polling : appelle fetchFn toutes les intervalMs tant que shouldContinue renvoie true
-export default function usePolling(fetchFn, intervalMs = 3000, shouldContinue = true) {
+// Hook generique de polling : appelle fetchFn toutes les intervalMs tant que enabled est true.
+// Utilise un ref pour la callback afin d'eviter de relancer le timer a chaque changement.
+export default function usePolling(fetchFn, intervalMs = 4000, enabled = true) {
+  const fnRef = useRef(fetchFn);
   const timerRef = useRef(null);
-  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    fnRef.current = fetchFn;
+  }, [fetchFn]);
 
   const stop = useCallback(() => {
     if (timerRef.current) {
@@ -13,26 +18,19 @@ export default function usePolling(fetchFn, intervalMs = 3000, shouldContinue = 
   }, []);
 
   useEffect(() => {
-    mountedRef.current = true;
-
-    if (!shouldContinue) {
+    if (!enabled) {
       stop();
       return;
     }
 
-    fetchFn();
+    fnRef.current();
 
     timerRef.current = setInterval(() => {
-      if (mountedRef.current && shouldContinue) {
-        fetchFn();
-      }
+      fnRef.current();
     }, intervalMs);
 
-    return () => {
-      mountedRef.current = false;
-      stop();
-    };
-  }, [fetchFn, intervalMs, shouldContinue, stop]);
+    return () => stop();
+  }, [enabled, intervalMs, stop]);
 
   return { stop };
 }

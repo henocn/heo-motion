@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import PageContainer from "../components/layout/PageContainer";
 import Button from "../components/ui/Button";
@@ -42,19 +42,28 @@ export default function GenerationPage() {
     (j) => j?.status === JOB_STATUS.QUEUED || j?.status === JOB_STATUS.RUNNING
   );
 
-  // Polling des scenes en cours de generation
+  const scenesRef = useRef(scenes);
+  const jobsRef = useRef(jobs);
+  useEffect(() => { scenesRef.current = scenes; }, [scenes]);
+  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+
+  // Polling des scenes en cours de generation — refs evitent de recréer la callback a chaque render
   const pollRunning = useCallback(() => {
-    scenes.forEach((scene) => {
+    const currentScenes = scenesRef.current;
+    const currentJobs = jobsRef.current;
+
+    currentScenes.forEach((scene) => {
       if (
         scene.image_status === "generating" ||
-        jobs[scene.id]?.status === JOB_STATUS.QUEUED ||
-        jobs[scene.id]?.status === JOB_STATUS.RUNNING
+        currentJobs[scene.id]?.status === JOB_STATUS.QUEUED ||
+        currentJobs[scene.id]?.status === JOB_STATUS.RUNNING
       ) {
         fetchStatus(scene.id);
-        fetchScenes(projectId);
       }
     });
-  }, [scenes, jobs, fetchStatus, fetchScenes, projectId]);
+
+    if (projectId) fetchScenes(projectId);
+  }, [fetchStatus, fetchScenes, projectId]);
 
   usePolling(pollRunning, 4000, hasRunningJobs);
 
