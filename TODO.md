@@ -46,22 +46,22 @@
 ---
 
 ## PHASE 1B — Fondations Frontend
-- [ ] 1B.1 Configurer Tailwind CSS + mettre à jour vite.config.js
-- [ ] 1B.2 Remplacer index.css par les directives Tailwind
-- [ ] 1B.3 `src/utils/constants.js` — Constantes (status, asset types, routes)
-- [ ] 1B.4 `src/utils/formatters.js` — Formatage dates, tailles, statuts
-- [ ] 1B.5 `src/utils/helpers.js` — Fonctions utilitaires pures
-- [ ] 1B.6 `src/api/client.js` — Axios instance configurée
-- [ ] 1B.7 `src/api/projects.js` — API client projets
-- [ ] 1B.8 `src/api/scenes.js` — API client scènes
-- [ ] 1B.9 `src/stores/useUIStore.js` — Store UI (sidebar, modales, toasts)
-- [ ] 1B.10 `src/stores/useProjectStore.js` — Store projets
-- [ ] 1B.11 `src/stores/useSceneStore.js` — Store scènes
-- [ ] 1B.12 Composants UI atomiques (Button, Card, Modal, Spinner, Badge, etc.)
-- [ ] 1B.13 Composants layout (AppLayout, Sidebar, Header, PageContainer)
-- [ ] 1B.14 Pages stubs (Dashboard, Project, Storyboard, Generation, etc.)
-- [ ] 1B.15 Réécrire App.jsx (React Router + AppLayout)
-- [ ] 1B.16 Tester : navigation entre toutes les pages
+- [x] 1B.1 Configurer Tailwind CSS + mettre à jour vite.config.js
+- [x] 1B.2 Remplacer index.css par les directives Tailwind
+- [x] 1B.3 `src/utils/constants.js` — Constantes (status, asset types, routes)
+- [x] 1B.4 `src/utils/formatters.js` — Formatage dates, tailles, statuts
+- [x] 1B.5 `src/utils/helpers.js` — Fonctions utilitaires pures
+- [x] 1B.6 `src/api/client.js` — Axios instance configurée
+- [x] 1B.7 `src/api/projects.js` — API client projets
+- [x] 1B.8 `src/api/scenes.js` — API client scènes
+- [x] 1B.9 `src/stores/useUIStore.js` — Store UI (sidebar, modales, toasts)
+- [x] 1B.10 `src/stores/useProjectStore.js` — Store projets
+- [x] 1B.11 `src/stores/useSceneStore.js` — Store scènes
+- [x] 1B.12 Composants UI atomiques (Button, Card, Modal, Spinner, Badge, etc.)
+- [x] 1B.13 Composants layout (AppLayout, Sidebar, Header, PageContainer)
+- [x] 1B.14 Pages stubs (Dashboard, Project, Storyboard, Generation, etc.)
+- [x] 1B.15 Réécrire App.jsx (React Router + AppLayout)
+- [x] 1B.16 Tester : navigation entre toutes les pages
 
 ---
 
