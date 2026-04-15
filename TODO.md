@@ -4,44 +4,44 @@
 
 ## PHASE 0 — Initialisation projet
 - [x] 0.1 Initialiser git + premier commit (structure)
-- [ ] 0.2 Installer les dépendances Python (pip install -r requirements.txt)
-- [ ] 0.3 Installer les dépendances Frontend (npm install + react-router-dom, zustand, axios, tailwindcss, @tailwindcss/vite)
-- [ ] 0.4 Configurer le .env backend (copier .env.example → .env)
+- [x] 0.2 Installer les dépendances Python (pip install -r requirements.txt)
+- [x] 0.3 Installer les dépendances Frontend (npm install + react-router-dom, zustand, axios, tailwindcss, @tailwindcss/vite)
+- [x] 0.4 Configurer le .env backend (copier .env.example → .env)
 
 ---
 
 ## PHASE 1 — Fondations Backend
-- [ ] 1.1 `app/config.py` — Configuration Pydantic BaseSettings
-- [ ] 1.2 `app/database.py` — SQLAlchemy async engine + session
-- [ ] 1.3 `app/schemas/common.py` — Enums partagés + réponses génériques
-- [ ] 1.4 `app/models/project.py` — Modèle SQLAlchemy Project
-- [ ] 1.5 `app/models/scene.py` — Modèle SQLAlchemy Scene
-- [ ] 1.6 `app/models/asset.py` — Modèle SQLAlchemy Asset
-- [ ] 1.7 `app/models/job.py` — Modèles Jobs (Generation, Segmentation, Vectorization, ExportBatch)
-- [ ] 1.8 `app/models/__init__.py` — Export centralisé de tous les modèles
-- [ ] 1.9 `app/schemas/project.py` — Schemas Pydantic Project (Create, Update, Response)
-- [ ] 1.10 `app/schemas/scene.py` — Schemas Pydantic Scene
-- [ ] 1.11 `app/schemas/asset.py` — Schemas Pydantic Asset
-- [ ] 1.12 `app/schemas/job.py` — Schemas Pydantic Jobs
-- [ ] 1.13 `app/exceptions.py` — Exceptions custom + handlers FastAPI
-- [ ] 1.14 `app/utils/logging.py` — Configuration logging structuré
-- [ ] 1.15 `app/repositories/base.py` — BaseRepository générique (CRUD)
-- [ ] 1.16 `app/repositories/project_repo.py` — Repository Project
-- [ ] 1.17 `app/repositories/scene_repo.py` — Repository Scene
-- [ ] 1.18 `app/repositories/asset_repo.py` — Repository Asset
-- [ ] 1.19 `app/repositories/job_repo.py` — Repository Jobs
-- [ ] 1.20 `app/services/storage_service.py` — Service stockage fichiers (local)
-- [ ] 1.21 `app/services/project_service.py` — Service Project (CRUD)
-- [ ] 1.22 `app/services/scene_service.py` — Service Scene (CRUD)
-- [ ] 1.23 `app/api/health.py` — Route health check
-- [ ] 1.24 `app/api/projects.py` — Routes CRUD Project
-- [ ] 1.25 `app/api/scenes.py` — Routes CRUD Scene
-- [ ] 1.26 `app/api/assets.py` — Routes Assets
-- [ ] 1.27 `app/api/router.py` — Agrégation de tous les routeurs
-- [ ] 1.28 `app/main.py` — App factory FastAPI (CORS, lifespan, router)
-- [ ] 1.29 Configurer Alembic (alembic init + env.py + alembic.ini)
-- [ ] 1.30 Première migration Alembic (créer les tables)
-- [ ] 1.31 Tester : lancer le serveur FastAPI + vérifier /health et /docs
+- [x] 1.1 `app/config.py` — Configuration Pydantic BaseSettings
+- [x] 1.2 `app/database.py` — SQLAlchemy async engine + session
+- [x] 1.3 `app/schemas/common.py` — Enums partagés + réponses génériques
+- [x] 1.4 `app/models/project.py` — Modèle SQLAlchemy Project
+- [x] 1.5 `app/models/scene.py` — Modèle SQLAlchemy Scene
+- [x] 1.6 `app/models/asset.py` — Modèle SQLAlchemy Asset
+- [x] 1.7 `app/models/job.py` — Modèles Jobs (Generation, Segmentation, Vectorization, ExportBatch)
+- [x] 1.8 `app/models/__init__.py` — Export centralisé de tous les modèles
+- [x] 1.9 `app/schemas/project.py` — Schemas Pydantic Project (Create, Update, Response)
+- [x] 1.10 `app/schemas/scene.py` — Schemas Pydantic Scene
+- [x] 1.11 `app/schemas/asset.py` — Schemas Pydantic Asset
+- [x] 1.12 `app/schemas/job.py` — Schemas Pydantic Jobs
+- [x] 1.13 `app/exceptions.py` — Exceptions custom + handlers FastAPI
+- [x] 1.14 `app/utils/logging.py` — Configuration logging structuré
+- [x] 1.15 `app/repositories/base.py` — BaseRepository générique (CRUD)
+- [x] 1.16 `app/repositories/project_repo.py` — Repository Project
+- [x] 1.17 `app/repositories/scene_repo.py` — Repository Scene
+- [x] 1.18 `app/repositories/asset_repo.py` — Repository Asset
+- [x] 1.19 `app/repositories/job_repo.py` — Repository Jobs
+- [x] 1.20 `app/services/storage_service.py` — Service stockage fichiers (local)
+- [x] 1.21 `app/services/project_service.py` — Service Project (CRUD)
+- [x] 1.22 `app/services/scene_service.py` — Service Scene (CRUD)
+- [x] 1.23 `app/api/health.py` — Route health check
+- [x] 1.24 `app/api/projects.py` — Routes CRUD Project
+- [x] 1.25 `app/api/scenes.py` — Routes CRUD Scene
+- [x] 1.26 `app/api/assets.py` — Routes Assets
+- [x] 1.27 `app/api/router.py` — Agrégation de tous les routeurs
+- [x] 1.28 `app/main.py` — App factory FastAPI (CORS, lifespan, router)
+- [x] 1.29 Configurer Alembic (alembic init + env.py + alembic.ini)
+- [x] 1.30 Première migration Alembic (créer les tables)
+- [x] 1.31 Tester : lancer le serveur FastAPI + vérifier /health et /docs
 
 ---
 
