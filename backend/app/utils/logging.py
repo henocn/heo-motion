@@ -21,5 +21,10 @@ def setup_logging(level: str = "INFO") -> None:
         root_logger.addHandler(handler)
 
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("replicate").setLevel(logging.WARNING)
+
+    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
