@@ -3,7 +3,7 @@
 ---
 
 ## PHASE 0 — Initialisation projet
-- [ ] 0.1 Initialiser git + premier commit (structure)
+- [x] 0.1 Initialiser git + premier commit (structure)
 - [ ] 0.2 Installer les dépendances Python (pip install -r requirements.txt)
 - [ ] 0.3 Installer les dépendances Frontend (npm install + react-router-dom, zustand, axios, tailwindcss, @tailwindcss/vite)
 - [ ] 0.4 Configurer le .env backend (copier .env.example → .env)
