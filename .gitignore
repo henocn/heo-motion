@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+backend/env/
+backend/venv/
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Media (generated files — keep .gitkeep only)
+backend/media/images/*
+backend/media/masks/*
+backend/media/assets/*
+backend/media/svg/*
+backend/media/exports/*
+!backend/media/**/.gitkeep
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.production
