@@ -66,19 +66,19 @@
 ---
 
 ## PHASE 2 — Pipeline Script → Images
-- [ ] 2.1 `app/integrations/openai_client.py` — Wrapper LLM (OpenAI)
-- [ ] 2.2 `app/services/storyboard_service.py` — Découpage script → scènes
-- [ ] 2.3 `app/api/scenes.py` — Endpoint POST storyboard/generate
-- [ ] 2.4 `app/services/prompt_service.py` — Génération prompts image
-- [ ] 2.5 `app/integrations/replicate_client.py` — Wrapper Replicate API
-- [ ] 2.6 `app/workers/celery_app.py` — Configuration Celery + Redis
-- [ ] 2.7 `app/workers/generation_tasks.py` — Tâche génération image
-- [ ] 2.8 `app/services/generation_service.py` — Service génération
-- [ ] 2.9 `app/api/generation.py` — Routes génération image
-- [ ] 2.10 Frontend : StoryboardPage complète
-- [ ] 2.11 Frontend : GenerationPage + polling
-- [ ] 2.12 `src/hooks/usePolling.js` — Hook polling générique
-- [ ] 2.13 `src/stores/useGenerationStore.js` — Store génération
+- [x] 2.1 `app/integrations/openai_client.py` — Wrapper LLM (OpenAI)
+- [x] 2.2 `app/services/storyboard_service.py` — Découpage script → scènes
+- [x] 2.3 `app/api/scenes.py` — Endpoint POST storyboard/generate
+- [x] 2.4 `app/services/prompt_service.py` — Génération prompts image
+- [x] 2.5 `app/integrations/replicate_client.py` — Wrapper Replicate API
+- [x] 2.6 `app/workers/celery_app.py` — Configuration Celery + Redis
+- [x] 2.7 `app/workers/generation_tasks.py` — Tâche génération image
+- [x] 2.8 `app/services/generation_service.py` — Service génération
+- [x] 2.9 `app/api/generation.py` — Routes génération image
+- [x] 2.10 Frontend : StoryboardPage complète
+- [x] 2.11 Frontend : GenerationPage + polling
+- [x] 2.12 `src/hooks/usePolling.js` — Hook polling générique
+- [x] 2.13 `src/stores/useGenerationStore.js` — Store génération
 - [ ] 2.14 Tester : pipeline complet script → images
 
 ---
