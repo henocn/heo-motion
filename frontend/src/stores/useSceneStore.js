@@ -53,6 +53,22 @@ const useSceneStore = create((set) => ({
     }
   },
 
+  // Importe une image uploadee pour une scene
+  uploadImage: async (sceneId, file) => {
+    set({ error: null });
+    try {
+      const data = await scenesApi.uploadSceneImage(sceneId, file);
+      set((s) => ({
+        scenes: s.scenes.map((sc) => (sc.id === sceneId ? data : sc)),
+        selectedScene: s.selectedScene?.id === sceneId ? data : s.selectedScene,
+      }));
+      return data;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
   // Approuve l'image d'une scene
   approveScene: async (sceneId) => {
     try {

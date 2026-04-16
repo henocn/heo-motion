@@ -29,6 +29,18 @@ export async function deleteScene(sceneId) {
   await apiClient.delete(`/scenes/${sceneId}`);
 }
 
+// Importe une image existante pour une scene
+export async function uploadSceneImage(sceneId, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const { data } = await apiClient.post(
+    `/scenes/${sceneId}/upload-image`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return data;
+}
+
 // Lance la generation du storyboard pour un projet
 export async function generateStoryboard(projectId) {
   const { data } = await apiClient.post(

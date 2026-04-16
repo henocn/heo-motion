@@ -1,11 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.scene import SceneCreate, SceneResponse, SceneUpdate
 from app.services.scene_service import SceneService
+from app.services.storage_service import StorageService
 from app.services.storyboard_service import StoryboardService
 
 
@@ -86,6 +87,20 @@ async def generate_storyboard(
     service: StoryboardService = Depends(get_storyboard_service),
 ) -> list[SceneResponse]:
     return await service.generate_storyboard(project_id)
+
+
+# Importe une image pour une scene (upload manuel)
+@router.post("/scenes/{scene_id}/upload-image", response_model=SceneResponse)
+async def upload_scene_image(
+    scene_id: uuid.UUID,
+    file: UploadFile = File(...),
+    service: SceneService = Depends(get_scene_service),
+) -> SceneResponse:
+    content = await file.read()
+    storage = StorageService()
+    ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "png"
+    relative_path = await storage.save_file(content, "images", extension=ext)
+    return await service.set_image(scene_id, relative_path)
 
 
 # Approuve l'image generee pour une scene

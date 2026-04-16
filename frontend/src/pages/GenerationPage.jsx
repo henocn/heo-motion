@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   ChevronDown,
   AlertCircle,
+  Upload,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Card, { CardBody } from "../components/ui/Card";
@@ -32,18 +33,32 @@ const STATUS_MAP = {
 // Page de generation d'images pour chaque scene
 export default function GenerationPage() {
   const { projectId } = useParams();
-  const { scenes, fetchScenes } = useSceneStore();
-  const { jobs, startGeneration, regenerate, fetchStatus } =
-    useGenerationStore();
+  const { scenes, fetchScenes, uploadImage } = useSceneStore();
+  const {
+    jobs,
+    loading: loadingMap,
+    startGeneration,
+    regenerate,
+    fetchStatus,
+    setOnJobDone,
+  } = useGenerationStore();
   const addToast = useUIStore((s) => s.addToast);
 
   useEffect(() => {
     if (projectId) fetchScenes(projectId);
   }, [projectId, fetchScenes]);
 
-  const hasRunningJobs = Object.values(jobs).some(
-    (j) => j?.status === JOB_STATUS.QUEUED || j?.status === JOB_STATUS.RUNNING
-  );
+  useEffect(() => {
+    setOnJobDone(() => {
+      if (projectId) fetchScenes(projectId);
+    });
+    return () => setOnJobDone(null);
+  }, [projectId, fetchScenes, setOnJobDone]);
+
+  const hasRunningJobs =
+    Object.values(jobs).some(
+      (j) => j?.status === JOB_STATUS.QUEUED || j?.status === JOB_STATUS.RUNNING
+    ) || Object.values(loadingMap).some(Boolean);
 
   const scenesRef = useRef(scenes);
   const jobsRef = useRef(jobs);
@@ -63,9 +78,7 @@ export default function GenerationPage() {
         fetchStatus(scene.id);
       }
     });
-
-    if (projectId) fetchScenes(projectId);
-  }, [fetchStatus, fetchScenes, projectId]);
+  }, [fetchStatus]);
 
   usePolling(pollRunning, 4000, hasRunningJobs);
 
@@ -87,6 +100,24 @@ export default function GenerationPage() {
     } catch (err) {
       addToast(err.message, "error");
     }
+  }
+
+  // Importe une image depuis le disque
+  function handleImport(sceneId) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        await uploadImage(sceneId, file);
+        addToast("Image importée", "success");
+      } catch (err) {
+        addToast(err.message, "error");
+      }
+    };
+    input.click();
   }
 
   if (scenes.length === 0) {
@@ -115,11 +146,16 @@ export default function GenerationPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {scenes.map((scene, index) => {
           const job = jobs[scene.id];
+          const isLoading = !!loadingMap[scene.id];
           const isGenerating =
+            isLoading ||
             scene.image_status === "generating" ||
             job?.status === JOB_STATUS.QUEUED ||
             job?.status === JOB_STATUS.RUNNING;
-          const status = STATUS_MAP[scene.image_status] || STATUS_MAP.pending;
+
+          const displayStatus = isGenerating
+            ? STATUS_MAP.generating
+            : (STATUS_MAP[scene.image_status] || STATUS_MAP.pending);
 
           return (
             <Card key={scene.id}>
@@ -128,8 +164,8 @@ export default function GenerationPage() {
                   <span className="text-sm font-semibold text-text-primary">
                     Scène {index + 1}
                   </span>
-                  <Badge color={status.color} dot={status.dot}>
-                    {status.label}
+                  <Badge color={displayStatus.color} dot={displayStatus.dot}>
+                    {displayStatus.label}
                   </Badge>
                 </div>
 
@@ -155,7 +191,7 @@ export default function GenerationPage() {
                       <div className="text-center">
                         <Spinner />
                         <p className="mt-2 text-xs text-text-muted">
-                          Génération...
+                          {isLoading ? "Lancement..." : "Génération en cours..."}
                         </p>
                       </div>
                     </div>
@@ -174,10 +210,20 @@ export default function GenerationPage() {
 
                 <div className="flex gap-2">
                   {!scene.generated_image_url && !isGenerating && (
-                    <Button size="sm" onClick={() => handleGenerate(scene.id)}>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Générer
-                    </Button>
+                    <>
+                      <Button size="sm" onClick={() => handleGenerate(scene.id)}>
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Générer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleImport(scene.id)}
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Importer
+                      </Button>
+                    </>
                   )}
                   {scene.generated_image_url && !isGenerating && (
                     <>
@@ -188,6 +234,14 @@ export default function GenerationPage() {
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                         Régénérer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleImport(scene.id)}
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Importer
                       </Button>
                       <Button
                         size="sm"
@@ -208,7 +262,7 @@ export default function GenerationPage() {
                   )}
                 </div>
 
-                {job?.error_message && (
+                {job?.error_message && !isGenerating && (
                   <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2">
                     <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
                     <p className="text-xs text-red-600">{job.error_message}</p>

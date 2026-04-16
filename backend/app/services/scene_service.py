@@ -86,6 +86,19 @@ class SceneService:
         await self.repo.delete(scene)
         logger.info("Scene deleted: %s", scene_id)
 
+    # Assigne une image importee manuellement a une scene
+    async def set_image(self, scene_id: uuid.UUID, image_path: str) -> SceneResponse:
+        scene = await self.repo.get_by_id(scene_id)
+        if not scene:
+            raise NotFoundException("Scene", str(scene_id))
+
+        scene = await self.repo.update(scene, {
+            "generated_image_url": image_path,
+            "image_status": "generated",
+        })
+        logger.info("Image imported for scene: %s -> %s", scene_id, image_path)
+        return SceneResponse.model_validate(scene)
+
     # Approuve l'image d'une scene
     async def approve_scene(self, scene_id: uuid.UUID) -> SceneResponse:
         scene = await self.repo.get_by_id(scene_id)

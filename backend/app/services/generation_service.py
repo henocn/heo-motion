@@ -47,11 +47,18 @@ class GenerationService:
 
         seed = random.randint(0, 2**32 - 1) if regenerate else None
 
+        from app.config import settings
+        provider = settings.IMAGE_PROVIDER.lower()
+        model_name = (
+            settings.GEMINI_IMAGE_MODEL if provider == "gemini"
+            else settings.REPLICATE_MODEL
+        )
+
         job = GenerationJob(
             scene_id=scene_id,
             prompt=scene.prompt_generated,
             negative_prompt=PromptService.get_negative_prompt(),
-            model="stability-ai/sdxl",
+            model=model_name,
             params={"width": 1024, "height": 1024, "seed": seed},
             status=JobStatus.QUEUED.value,
         )

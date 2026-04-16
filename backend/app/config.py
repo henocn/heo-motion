@@ -23,9 +23,12 @@ class Settings(BaseSettings):
     # --- Redis ---
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # --- Replicate API ---
+    # --- Image generation ---
+    IMAGE_PROVIDER: str = "gemini"
+    GOOGLE_AI_STUDIO_API_KEY: str = ""
+    GEMINI_IMAGE_MODEL: str = "gemini-2.5-flash-image"
     REPLICATE_API_TOKEN: str = ""
-    REPLICATE_MODEL: str = "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
+    REPLICATE_MODEL: str = "google/imagen-4"
 
     # --- OpenAI / LLM ---
     OPENAI_API_KEY: str = ""
