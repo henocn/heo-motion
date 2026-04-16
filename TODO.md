@@ -35,7 +35,7 @@
 - [x] 1.22 `app/services/scene_service.py` — Service Scene (CRUD)
 - [x] 1.23 `app/api/health.py` — Route health check
 - [x] 1.24 `app/api/projects.py` — Routes CRUD Project
-- [x] 1.25 `app/api/scenes.py` — Routes CRUD Scene
+- [x] 1.25 `app/api/scenes.py` — Routes CRUD Scene + upload image
 - [x] 1.26 `app/api/assets.py` — Routes Assets
 - [x] 1.27 `app/api/router.py` — Agrégation de tous les routeurs
 - [x] 1.28 `app/main.py` — App factory FastAPI (CORS, lifespan, router)
@@ -53,14 +53,14 @@
 - [x] 1B.5 `src/utils/helpers.js` — Fonctions utilitaires pures
 - [x] 1B.6 `src/api/client.js` — Axios instance configurée
 - [x] 1B.7 `src/api/projects.js` — API client projets
-- [x] 1B.8 `src/api/scenes.js` — API client scènes
-- [x] 1B.9 `src/stores/useUIStore.js` — Store UI (sidebar, modales, toasts)
+- [x] 1B.8 `src/api/scenes.js` — API client scènes + upload image
+- [x] 1B.9 `src/stores/useUIStore.js` — Store UI (toasts, modales)
 - [x] 1B.10 `src/stores/useProjectStore.js` — Store projets
 - [x] 1B.11 `src/stores/useSceneStore.js` — Store scènes
-- [x] 1B.12 Composants UI atomiques (Button, Card, Modal, Spinner, Badge, etc.)
-- [x] 1B.13 Composants layout (AppLayout, Sidebar, Header, PageContainer)
+- [x] 1B.12 Composants UI atomiques (Button, Card, Modal, Spinner, Badge, ConfirmDialog, etc.)
+- [x] 1B.13 Composants layout (AppLayout, top header)
 - [x] 1B.14 Pages stubs (Dashboard, Project, Storyboard, Generation, etc.)
-- [x] 1B.15 Réécrire App.jsx (React Router + AppLayout)
+- [x] 1B.15 Réécrire App.jsx (React Router + AppLayout + onglet Détails)
 - [x] 1B.16 Tester : navigation entre toutes les pages
 
 ---
@@ -70,33 +70,47 @@
 - [x] 2.2 `app/services/storyboard_service.py` — Découpage script → scènes
 - [x] 2.3 `app/api/scenes.py` — Endpoint POST storyboard/generate
 - [x] 2.4 `app/services/prompt_service.py` — Génération prompts image
-- [x] 2.5 `app/integrations/replicate_client.py` — Wrapper Replicate API
-- [x] 2.6 `app/workers/celery_app.py` — Configuration Celery + Redis
-- [x] 2.7 `app/workers/generation_tasks.py` — Tâche génération image
-- [x] 2.8 `app/services/generation_service.py` — Service génération
-- [x] 2.9 `app/api/generation.py` — Routes génération image
-- [x] 2.10 Frontend : StoryboardPage complète
-- [x] 2.11 Frontend : GenerationPage + polling
-- [x] 2.12 `src/hooks/usePolling.js` — Hook polling générique
-- [x] 2.13 `src/stores/useGenerationStore.js` — Store génération
-- [ ] 2.14 Tester : pipeline complet script → images
+- [x] 2.5 `app/integrations/replicate_client.py` — Wrapper Replicate API (Imagen 4)
+- [x] 2.6 `app/integrations/gemini_client.py` — Wrapper Google AI Studio (Gemini)
+- [x] 2.7 `app/workers/celery_app.py` — Configuration Celery + Redis
+- [x] 2.8 `app/workers/generation_tasks.py` — Tâche génération image (100% sync)
+- [x] 2.9 `app/services/generation_service.py` — Service génération
+- [x] 2.10 `app/api/generation.py` — Routes génération image
+- [x] 2.11 Frontend : StoryboardPage complète (édition, suppression scènes)
+- [x] 2.12 Frontend : GenerationPage (polling, preview modal, edit prompt, générer tout, importer)
+- [x] 2.13 `src/hooks/usePolling.js` — Hook polling générique
+- [x] 2.14 `src/stores/useGenerationStore.js` — Store génération + callback onJobDone
+- [x] 2.15 `manage.py` — CLI backend (runserver, runcelery, migrate, shell)
+- [x] 2.16 Pipeline complet script → images testé et fonctionnel
 
 ---
 
-## PHASE 3 — Segmentation & Export
-- [ ] 3.1 `app/integrations/sam2_client.py` — Interface SAM2 local
-- [ ] 3.2 `app/workers/segmentation_tasks.py` — Tâche segmentation
-- [ ] 3.3 `app/services/segmentation_service.py` — Service segmentation
-- [ ] 3.4 `app/api/segmentation.py` — Routes segmentation
-- [ ] 3.5 `app/integrations/vectorizer_client.py` — Wrapper vtracer/potrace
-- [ ] 3.6 `app/workers/vectorization_tasks.py` — Tâche vectorisation
-- [ ] 3.7 `app/services/vectorization_service.py` — Service vectorisation
-- [ ] 3.8 `app/workers/export_tasks.py` — Tâche export ZIP
-- [ ] 3.9 `app/services/export_service.py` — Service export
-- [ ] 3.10 `app/api/export.py` — Routes export
-- [ ] 3.11 Frontend : SegmentationPage complète
-- [ ] 3.12 Frontend : ExportPage complète
-- [ ] 3.13 Tester : pipeline complet script → export
+## PHASE 3 — Segmentation & Vectorisation
+
+### 3A — Segmentation (rembg + points anatomiques)
+- [ ] 3A.1 Installer `rembg[cpu]` dans le backend
+- [ ] 3A.2 `app/integrations/sam2_client.py` — Client segmentation (rembg : fond/sujet + découpe anatomique)
+- [ ] 3A.3 `app/workers/segmentation_tasks.py` — Tâche Celery segmentation (sync)
+- [ ] 3A.4 `app/services/segmentation_service.py` — Service orchestration segmentation
+- [ ] 3A.5 `app/api/segmentation.py` — Routes API segmentation
+- [ ] 3A.6 Ajouter le routeur segmentation dans `app/api/router.py`
+- [ ] 3A.7 Frontend : `src/api/segmentation.js` — API client segmentation
+- [ ] 3A.8 Frontend : `src/stores/useSegmentationStore.js` — Store segmentation
+- [ ] 3A.9 Frontend : SegmentationPage complète (lancer, visualiser masques, approuver)
+- [ ] 3A.10 Tester : pipeline segmentation image → assets
+
+### 3B — Vectorisation (vtracer)
+- [ ] 3B.1 `app/integrations/vectorizer_client.py` — Wrapper vtracer
+- [ ] 3B.2 `app/workers/vectorization_tasks.py` — Tâche Celery vectorisation
+- [ ] 3B.3 `app/services/vectorization_service.py` — Service vectorisation
+- [ ] 3B.4 Frontend : intégrer bouton vectorisation dans SegmentationPage
+
+### 3C — Export
+- [ ] 3C.1 `app/workers/export_tasks.py` — Tâche export ZIP (PNG + SVG + métadonnées)
+- [ ] 3C.2 `app/services/export_service.py` — Service export
+- [ ] 3C.3 `app/api/export.py` — Routes export + téléchargement
+- [ ] 3C.4 Frontend : ExportPage complète
+- [ ] 3C.5 Tester : pipeline complet script → export
 
 ---
 
@@ -104,5 +118,5 @@
 - [ ] 4.1 `tests/conftest.py` — Fixtures partagées
 - [ ] 4.2 Tests unitaires API (projects, scenes, generation)
 - [ ] 4.3 Gestion d'erreurs frontend (toasts, retry, empty states)
-- [ ] 4.4 Responsive design (mobile sidebar)
+- [ ] 4.4 Responsive design
 - [ ] 4.5 Documentation architecture.md
