@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import {
   Sparkles,
@@ -8,6 +8,11 @@ import {
   ChevronDown,
   AlertCircle,
   Upload,
+  X,
+  Pencil,
+  Save,
+  Play,
+  Download,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import Card, { CardBody } from "../components/ui/Card";
@@ -33,7 +38,7 @@ const STATUS_MAP = {
 // Page de generation d'images pour chaque scene
 export default function GenerationPage() {
   const { projectId } = useParams();
-  const { scenes, fetchScenes, uploadImage } = useSceneStore();
+  const { scenes, fetchScenes, uploadImage, updateScene } = useSceneStore();
   const {
     jobs,
     loading: loadingMap,
@@ -43,6 +48,12 @@ export default function GenerationPage() {
     setOnJobDone,
   } = useGenerationStore();
   const addToast = useUIStore((s) => s.addToast);
+
+  const [previewScene, setPreviewScene] = useState(null);
+  const [editingPrompt, setEditingPrompt] = useState(null);
+  const [promptDraft, setPromptDraft] = useState("");
+  const [savingPrompt, setSavingPrompt] = useState(false);
+  const [generatingAll, setGeneratingAll] = useState(false);
 
   useEffect(() => {
     if (projectId) fetchScenes(projectId);
@@ -120,6 +131,51 @@ export default function GenerationPage() {
     input.click();
   }
 
+  // Sauvegarde le prompt modifie
+  async function handleSavePrompt(sceneId) {
+    setSavingPrompt(true);
+    try {
+      await updateScene(sceneId, { prompt_generated: promptDraft });
+      setEditingPrompt(null);
+      addToast("Prompt mis à jour", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setSavingPrompt(false);
+    }
+  }
+
+  // Lance la generation pour toutes les scenes qui n'ont pas encore d'image
+  async function handleGenerateAll() {
+    const pending = scenes.filter(
+      (s) => !s.generated_image_url && s.image_status !== "generating"
+    );
+    if (pending.length === 0) {
+      addToast("Toutes les scènes ont déjà une image", "info");
+      return;
+    }
+    setGeneratingAll(true);
+    let launched = 0;
+    for (const scene of pending) {
+      try {
+        await startGeneration(scene.id);
+        launched++;
+      } catch {
+        /* continue with others */
+      }
+    }
+    setGeneratingAll(false);
+    addToast(`${launched} génération(s) lancée(s)`, "info");
+  }
+
+  // Ferme la modal avec Escape
+  useEffect(() => {
+    if (!previewScene) return;
+    const handler = (e) => e.key === "Escape" && setPreviewScene(null);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [previewScene]);
+
   if (scenes.length === 0) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-6">
@@ -132,15 +188,32 @@ export default function GenerationPage() {
     );
   }
 
+  const pendingCount = scenes.filter(
+    (s) => !s.generated_image_url && s.image_status !== "generating"
+  ).length;
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-6">
-      <div className="mb-6">
-        <h2 className="text-base font-semibold text-text-primary">
-          Génération d'images
-        </h2>
-        <p className="mt-0.5 text-sm text-text-muted">
-          Générez et validez les visuels de chaque scène
-        </p>
+      <div className="mb-6 flex items-end justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-text-primary">
+            Génération d'images
+          </h2>
+          <p className="mt-0.5 text-sm text-text-muted">
+            Générez et validez les visuels de chaque scène
+          </p>
+        </div>
+        {pendingCount > 0 && (
+          <Button
+            size="sm"
+            onClick={handleGenerateAll}
+            loading={generatingAll}
+            disabled={generatingAll}
+          >
+            <Play className="h-3.5 w-3.5" />
+            Générer tout ({pendingCount})
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -156,6 +229,8 @@ export default function GenerationPage() {
           const displayStatus = isGenerating
             ? STATUS_MAP.generating
             : (STATUS_MAP[scene.image_status] || STATUS_MAP.pending);
+
+          const isEditingThis = editingPrompt === scene.id;
 
           return (
             <Card key={scene.id}>
@@ -173,18 +248,69 @@ export default function GenerationPage() {
                   {scene.visual_description}
                 </p>
 
-                {scene.prompt_generated && (
+                {/* Prompt : affichage ou edition */}
+                {isEditingThis ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={promptDraft}
+                      onChange={(e) => setPromptDraft(e.target.value)}
+                      rows={4}
+                      className="w-full rounded-lg border border-border bg-surface-dim px-3 py-2 text-xs text-text-primary leading-relaxed focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 resize-none"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSavePrompt(scene.id)}
+                        loading={savingPrompt}
+                      >
+                        <Save className="h-3 w-3" />
+                        Enregistrer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditingPrompt(null)}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                ) : scene.prompt_generated ? (
                   <details className="group">
                     <summary className="flex cursor-pointer items-center gap-1 text-xs text-text-muted hover:text-text-secondary">
                       <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
                       Voir le prompt
                     </summary>
-                    <p className="mt-1.5 rounded-lg bg-surface-dim p-2.5 text-xs text-text-secondary leading-relaxed">
-                      {scene.prompt_generated}
-                    </p>
+                    <div className="mt-1.5 rounded-lg bg-surface-dim p-2.5">
+                      <p className="text-xs text-text-secondary leading-relaxed">
+                        {scene.prompt_generated}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setEditingPrompt(scene.id);
+                          setPromptDraft(scene.prompt_generated || "");
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Modifier le prompt
+                      </button>
+                    </div>
                   </details>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingPrompt(scene.id);
+                      setPromptDraft("");
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Écrire un prompt
+                  </button>
                 )}
 
+                {/* Image preview area */}
                 <div className="aspect-video overflow-hidden rounded-lg bg-surface-dim">
                   {isGenerating ? (
                     <div className="flex h-full items-center justify-center">
@@ -199,7 +325,8 @@ export default function GenerationPage() {
                     <img
                       src={`${API_BASE}/media/${scene.generated_image_url}`}
                       alt={`Scène ${index + 1}`}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full cursor-pointer object-cover transition-opacity hover:opacity-90"
+                      onClick={() => setPreviewScene({ ...scene, index })}
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-text-muted">
@@ -208,7 +335,7 @@ export default function GenerationPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {!scene.generated_image_url && !isGenerating && (
                     <>
                       <Button size="sm" onClick={() => handleGenerate(scene.id)}>
@@ -273,6 +400,46 @@ export default function GenerationPage() {
           );
         })}
       </div>
+
+      {/* Modal de previsualisation plein ecran */}
+      {previewScene && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="absolute right-4 top-4 flex gap-2">
+            <a
+              href={`${API_BASE}/media/${previewScene.generated_image_url}`}
+              download
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+            >
+              <Download className="h-5 w-5" />
+            </a>
+            <button
+              onClick={() => setPreviewScene(null)}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div
+            className="absolute inset-0"
+            onClick={() => setPreviewScene(null)}
+          />
+
+          <div className="relative z-10 flex max-h-[90vh] max-w-[90vw] flex-col items-center">
+            <img
+              src={`${API_BASE}/media/${previewScene.generated_image_url}`}
+              alt={`Scène ${previewScene.index + 1}`}
+              className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl"
+            />
+            <div className="mt-3 text-center">
+              <span className="rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-white">
+                Scène {previewScene.index + 1}
+                {previewScene.shot_type && ` — ${previewScene.shot_type}`}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
