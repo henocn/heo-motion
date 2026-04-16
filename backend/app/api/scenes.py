@@ -67,6 +67,15 @@ async def update_scene(
     return await service.update_scene(scene_id, data)
 
 
+# Supprime une scene par son id
+@router.delete("/scenes/{scene_id}", status_code=204)
+async def delete_scene(
+    scene_id: uuid.UUID,
+    service: SceneService = Depends(get_scene_service),
+) -> None:
+    await service.delete_scene(scene_id)
+
+
 # Lance la generation du storyboard par le LLM
 @router.post(
     "/projects/{project_id}/storyboard/generate",

@@ -24,6 +24,11 @@ export async function approveScene(sceneId) {
   return data;
 }
 
+// Supprime une scene
+export async function deleteScene(sceneId) {
+  await apiClient.delete(`/scenes/${sceneId}`);
+}
+
 // Lance la generation du storyboard pour un projet
 export async function generateStoryboard(projectId) {
   const { data } = await apiClient.post(

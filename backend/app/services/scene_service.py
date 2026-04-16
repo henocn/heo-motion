@@ -77,6 +77,15 @@ class SceneService:
         logger.info("Scene updated: %s", scene_id)
         return SceneResponse.model_validate(scene)
 
+    # Supprime une scene par son id
+    async def delete_scene(self, scene_id: uuid.UUID) -> None:
+        scene = await self.repo.get_by_id(scene_id)
+        if not scene:
+            raise NotFoundException("Scene", str(scene_id))
+
+        await self.repo.delete(scene)
+        logger.info("Scene deleted: %s", scene_id)
+
     # Approuve l'image d'une scene
     async def approve_scene(self, scene_id: uuid.UUID) -> SceneResponse:
         scene = await self.repo.get_by_id(scene_id)

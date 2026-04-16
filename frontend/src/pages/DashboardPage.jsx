@@ -12,13 +12,14 @@ import Badge from "../components/ui/Badge";
 import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
 import Modal from "../components/ui/Modal";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 import useProjectStore from "../stores/useProjectStore";
 import useUIStore from "../stores/useUIStore";
 import {
   PROJECT_STATUS_LABELS,
   PROJECT_STATUS_COLORS,
 } from "../utils/constants";
-import { formatRelativeTime, formatDate } from "../utils/formatters";
+import { formatRelativeTime } from "../utils/formatters";
 
 // Page d'accueil avec la liste de tous les projets (vue tableau)
 export default function DashboardPage() {
@@ -29,6 +30,8 @@ export default function DashboardPage() {
 
   const [formData, setFormData] = useState({ name: "", script_raw_text: "" });
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -52,15 +55,18 @@ export default function DashboardPage() {
     }
   }
 
-  // Supprime un projet apres confirmation
-  async function handleDelete(e, projectId) {
-    e.stopPropagation();
-    if (!window.confirm("Supprimer ce projet ?")) return;
+  // Confirme la suppression du projet
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteProject(projectId);
+      await deleteProject(deleteTarget.id);
       addToast("Projet supprimé", "success");
+      setDeleteTarget(null);
     } catch {
       addToast("Erreur lors de la suppression", "error");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -140,7 +146,10 @@ export default function DashboardPage() {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={(e) => handleDelete(e, project.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(project);
+                        }}
                         className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -201,6 +210,15 @@ export default function DashboardPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Supprimer le projet"
+        message={`Êtes-vous sûr de vouloir supprimer « ${deleteTarget?.name} » ? Toutes les scènes, images et assets associés seront définitivement perdus.`}
+        loading={deleting}
+      />
     </div>
   );
 }

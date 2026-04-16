@@ -38,6 +38,21 @@ const useSceneStore = create((set) => ({
     }
   },
 
+  // Supprime une scene et la retire du store
+  deleteScene: async (sceneId) => {
+    set({ error: null });
+    try {
+      await scenesApi.deleteScene(sceneId);
+      set((s) => ({
+        scenes: s.scenes.filter((sc) => sc.id !== sceneId),
+        selectedScene: s.selectedScene?.id === sceneId ? null : s.selectedScene,
+      }));
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
   // Approuve l'image d'une scene
   approveScene: async (sceneId) => {
     try {
