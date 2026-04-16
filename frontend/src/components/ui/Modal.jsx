@@ -1,8 +1,8 @@
 import { useEffect } from "react";
+import { X } from "lucide-react";
 
-// Modale centree avec overlay sombre
+// Modale centree avec overlay sombre et animation
 export default function Modal({ isOpen, onClose, title, children, size = "md" }) {
-  // Ferme la modale sur Escape
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e) => e.key === "Escape" && onClose();
@@ -20,23 +20,19 @@ export default function Modal({ isOpen, onClose, title, children, size = "md" })
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div
-        className={`relative z-10 w-full ${sizes[size]} rounded-xl bg-white shadow-xl`}
-      >
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className={`relative z-10 w-full ${sizes[size]} rounded-2xl bg-surface shadow-2xl shadow-black/10`}>
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold text-text-primary">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-secondary"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );

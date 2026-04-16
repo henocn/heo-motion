@@ -1,15 +1,10 @@
 import { create } from "zustand";
 
-// Store global pour l'etat de l'interface (sidebar, modales, toasts)
+// Store global pour l'etat de l'interface (modales, toasts)
 const useUIStore = create((set) => ({
-  sidebarOpen: true,
   activeModal: null,
   modalData: null,
   toasts: [],
-
-  // Ouvre ou ferme la sidebar
-  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
   // Ouvre une modale avec des donnees optionnelles
   openModal: (name, data = null) => set({ activeModal: name, modalData: data }),

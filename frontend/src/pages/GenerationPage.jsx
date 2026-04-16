@@ -1,6 +1,13 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import PageContainer from "../components/layout/PageContainer";
+import {
+  Sparkles,
+  RefreshCw,
+  Check,
+  Image as ImageIcon,
+  ChevronDown,
+  AlertCircle,
+} from "lucide-react";
 import Button from "../components/ui/Button";
 import Card, { CardBody } from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
@@ -14,17 +21,13 @@ import { JOB_STATUS } from "../utils/constants";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
-// Renvoie la couleur du badge selon le statut d'image
-function getStatusBadge(status) {
-  const map = {
-    pending: { color: "bg-slate-100 text-slate-600", label: "En attente" },
-    generating: { color: "bg-amber-100 text-amber-700", label: "En cours..." },
-    generated: { color: "bg-blue-100 text-blue-700", label: "Générée" },
-    approved: { color: "bg-emerald-100 text-emerald-700", label: "Approuvée" },
-    rejected: { color: "bg-red-100 text-red-700", label: "Rejetée" },
-  };
-  return map[status] || { color: "bg-slate-100 text-slate-600", label: status };
-}
+const STATUS_MAP = {
+  pending: { color: "bg-slate-50 text-slate-500", label: "En attente" },
+  generating: { color: "bg-amber-50 text-amber-600", dot: "bg-amber-500", label: "En cours..." },
+  generated: { color: "bg-sky-50 text-sky-600", label: "Générée" },
+  approved: { color: "bg-emerald-50 text-emerald-600", dot: "bg-emerald-500", label: "Approuvée" },
+  rejected: { color: "bg-red-50 text-red-500", label: "Rejetée" },
+};
 
 // Page de generation d'images pour chaque scene
 export default function GenerationPage() {
@@ -47,7 +50,6 @@ export default function GenerationPage() {
   useEffect(() => { scenesRef.current = scenes; }, [scenes]);
   useEffect(() => { jobsRef.current = jobs; }, [jobs]);
 
-  // Polling des scenes en cours de generation — refs evitent de recréer la callback a chaque render
   const pollRunning = useCallback(() => {
     const currentScenes = scenesRef.current;
     const currentJobs = jobsRef.current;
@@ -89,72 +91,71 @@ export default function GenerationPage() {
 
   if (scenes.length === 0) {
     return (
-      <PageContainer>
+      <div className="mx-auto max-w-5xl px-6 py-6">
         <EmptyState
-          icon={
-            <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          }
+          icon={<ImageIcon className="h-12 w-12" strokeWidth={1} />}
           title="Aucune scène"
           description="Générez d'abord le storyboard dans l'onglet Storyboard"
         />
-      </PageContainer>
+      </div>
     );
   }
 
   return (
-    <PageContainer>
+    <div className="mx-auto max-w-5xl px-6 py-6">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-slate-900">
+        <h2 className="text-base font-semibold text-text-primary">
           Génération d'images
         </h2>
-        <p className="text-sm text-slate-500">
-          Générez et validez les images pour chaque scène
+        <p className="mt-0.5 text-sm text-text-muted">
+          Générez et validez les visuels de chaque scène
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {scenes.map((scene, index) => {
           const job = jobs[scene.id];
           const isGenerating =
             scene.image_status === "generating" ||
             job?.status === JOB_STATUS.QUEUED ||
             job?.status === JOB_STATUS.RUNNING;
-          const badge = getStatusBadge(scene.image_status);
+          const status = STATUS_MAP[scene.image_status] || STATUS_MAP.pending;
 
           return (
             <Card key={scene.id}>
-              <CardBody className="space-y-4">
+              <CardBody className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="text-sm font-semibold text-text-primary">
                     Scène {index + 1}
                   </span>
-                  <Badge color={badge.color}>{badge.label}</Badge>
+                  <Badge color={status.color} dot={status.dot}>
+                    {status.label}
+                  </Badge>
                 </div>
 
-                <p className="text-sm text-slate-600 line-clamp-2">
+                <p className="text-xs text-text-muted line-clamp-2">
                   {scene.visual_description}
                 </p>
 
                 {scene.prompt_generated && (
-                  <details className="text-xs text-slate-400">
-                    <summary className="cursor-pointer hover:text-slate-600">
+                  <details className="group">
+                    <summary className="flex cursor-pointer items-center gap-1 text-xs text-text-muted hover:text-text-secondary">
+                      <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
                       Voir le prompt
                     </summary>
-                    <p className="mt-1 rounded bg-slate-50 p-2">
+                    <p className="mt-1.5 rounded-lg bg-surface-dim p-2.5 text-xs text-text-secondary leading-relaxed">
                       {scene.prompt_generated}
                     </p>
                   </details>
                 )}
 
-                <div className="aspect-square overflow-hidden rounded-lg bg-slate-100">
+                <div className="aspect-video overflow-hidden rounded-lg bg-surface-dim">
                   {isGenerating ? (
                     <div className="flex h-full items-center justify-center">
                       <div className="text-center">
                         <Spinner />
-                        <p className="mt-2 text-xs text-slate-400">
-                          Génération en cours...
+                        <p className="mt-2 text-xs text-text-muted">
+                          Génération...
                         </p>
                       </div>
                     </div>
@@ -165,21 +166,17 @@ export default function GenerationPage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-slate-300">
-                      <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                    <div className="flex h-full items-center justify-center text-text-muted">
+                      <ImageIcon className="h-10 w-10" strokeWidth={1} />
                     </div>
                   )}
                 </div>
 
                 <div className="flex gap-2">
                   {!scene.generated_image_url && !isGenerating && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleGenerate(scene.id)}
-                    >
-                      Générer l'image
+                    <Button size="sm" onClick={() => handleGenerate(scene.id)}>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Générer
                     </Button>
                   )}
                   {scene.generated_image_url && !isGenerating && (
@@ -189,6 +186,7 @@ export default function GenerationPage() {
                         variant="secondary"
                         onClick={() => handleRegenerate(scene.id)}
                       >
+                        <RefreshCw className="h-3.5 w-3.5" />
                         Régénérer
                       </Button>
                       <Button
@@ -203,20 +201,24 @@ export default function GenerationPage() {
                         }
                         disabled={scene.user_approved}
                       >
-                        {scene.user_approved ? "Approuvée ✓" : "Approuver"}
+                        <Check className="h-3.5 w-3.5" />
+                        {scene.user_approved ? "Approuvée" : "Approuver"}
                       </Button>
                     </>
                   )}
                 </div>
 
                 {job?.error_message && (
-                  <p className="text-xs text-red-500">{job.error_message}</p>
+                  <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                    <p className="text-xs text-red-600">{job.error_message}</p>
+                  </div>
                 )}
               </CardBody>
             </Card>
           );
         })}
       </div>
-    </PageContainer>
+    </div>
   );
 }
