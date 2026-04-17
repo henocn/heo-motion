@@ -298,16 +298,9 @@ export default function GenerationPage() {
                     </div>
                   </details>
                 ) : (
-                  <button
-                    onClick={() => {
-                      setEditingPrompt(scene.id);
-                      setPromptDraft("");
-                    }}
-                    className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    Écrire un prompt
-                  </button>
+                  <p className="text-xs text-text-muted italic">
+                    Le prompt sera généré automatiquement au lancement
+                  </p>
                 )}
 
                 {/* Image preview area */}

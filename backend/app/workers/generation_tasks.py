@@ -109,6 +109,28 @@ def _generate_with_provider(prompt: str, negative_prompt: str, width: int, heigh
             height=height,
         )
 
+    elif provider == "openai":
+        from openai import OpenAI
+        import httpx
+
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        size = _openai_size(width, height)
+        logger.info("OpenAI image request: model=%s, size=%s, quality=%s",
+                     settings.OPENAI_IMAGE_MODEL, size, settings.OPENAI_IMAGE_QUALITY)
+
+        response = client.images.generate(
+            model=settings.OPENAI_IMAGE_MODEL,
+            prompt=prompt,
+            n=1,
+            size=size,
+            quality=settings.OPENAI_IMAGE_QUALITY,
+        )
+        image_url = response.data[0].url
+        with httpx.Client(timeout=60) as http:
+            dl = http.get(image_url)
+            dl.raise_for_status()
+            return dl.content
+
     elif provider == "replicate":
         from app.integrations.replicate_client import ReplicateClient
         client = ReplicateClient()
@@ -123,6 +145,15 @@ def _generate_with_provider(prompt: str, negative_prompt: str, width: int, heigh
 
     else:
         raise ValueError(f"Unknown IMAGE_PROVIDER: {provider}")
+
+
+# Convertit width/height en format OpenAI (1024x1024, 1024x1792, 1792x1024)
+def _openai_size(width: int, height: int) -> str:
+    if width > height:
+        return "1792x1024"
+    elif height > width:
+        return "1024x1792"
+    return "1024x1024"
 
 
 # Sauvegarde les bytes d'une image sur le disque et renvoie le chemin relatif

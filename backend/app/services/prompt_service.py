@@ -13,7 +13,7 @@ from app.schemas.scene import SceneResponse
 logger = logging.getLogger(__name__)
 
 
-PROMPT_SYSTEM = """Tu es un expert en génération d'images par IA (Stable Diffusion, Flux).
+_DEFAULT_SYSTEM_PROMPT = """Tu es un expert en génération d'images par IA (Stable Diffusion, Flux).
 
 On te donne la description d'une scène de motion design. Tu dois créer un prompt optimisé pour générer une image flat design de haute qualité.
 
@@ -26,12 +26,14 @@ Règles :
 
 Réponds UNIQUEMENT avec le prompt, rien d'autre. Pas de guillemets, pas d'explication."""
 
-
-NEGATIVE_PROMPT = (
+_DEFAULT_NEGATIVE_PROMPT = (
     "realistic, photographic, 3d render, text, watermark, signature, "
     "blurry, low quality, deformed, complex background, dark, gritty, "
     "multiple views, collage, border, frame"
 )
+
+_system_prompt = _DEFAULT_SYSTEM_PROMPT
+_negative_prompt = _DEFAULT_NEGATIVE_PROMPT
 
 
 #################################################
@@ -71,7 +73,7 @@ class PromptService:
         )
 
         prompt = await self.llm.chat(
-            system_prompt=PROMPT_SYSTEM,
+            system_prompt=_system_prompt,
             user_prompt=user_prompt,
             temperature=0.6,
             max_tokens=500,
@@ -86,7 +88,24 @@ class PromptService:
         logger.info("Prompt generated for scene %s", scene_id)
         return SceneResponse.model_validate(scene)
 
-    # Renvoie le negative prompt standard
+    # Renvoie le negative prompt courant
     @staticmethod
     def get_negative_prompt() -> str:
-        return NEGATIVE_PROMPT
+        return _negative_prompt
+
+    # Renvoie le prompt systeme courant
+    @staticmethod
+    def get_system_prompt() -> str:
+        return _system_prompt
+
+    # Modifie le prompt systeme en memoire (vide = retour au defaut)
+    @staticmethod
+    def set_system_prompt(value: str) -> None:
+        global _system_prompt
+        _system_prompt = value.strip() if value.strip() else _DEFAULT_SYSTEM_PROMPT
+
+    # Modifie le negative prompt en memoire (vide = retour au defaut)
+    @staticmethod
+    def set_negative_prompt(value: str) -> None:
+        global _negative_prompt
+        _negative_prompt = value.strip() if value.strip() else _DEFAULT_NEGATIVE_PROMPT

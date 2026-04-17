@@ -30,9 +30,11 @@ class Settings(BaseSettings):
     REPLICATE_API_TOKEN: str = ""
     REPLICATE_MODEL: str = "google/imagen-4"
 
-    # --- OpenAI / LLM ---
+    # --- OpenAI / LLM + Image ---
     OPENAI_API_KEY: str = ""
     LLM_MODEL: str = "gpt-4o-mini"
+    OPENAI_IMAGE_MODEL: str = "dall-e-3"
+    OPENAI_IMAGE_QUALITY: str = "standard"
 
     # --- Storage ---
     MEDIA_ROOT: str = "./media"

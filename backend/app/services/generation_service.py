@@ -49,10 +49,12 @@ class GenerationService:
 
         from app.config import settings
         provider = settings.IMAGE_PROVIDER.lower()
-        model_name = (
-            settings.GEMINI_IMAGE_MODEL if provider == "gemini"
-            else settings.REPLICATE_MODEL
-        )
+        model_map = {
+            "gemini": settings.GEMINI_IMAGE_MODEL,
+            "openai": settings.OPENAI_IMAGE_MODEL,
+            "replicate": settings.REPLICATE_MODEL,
+        }
+        model_name = model_map.get(provider, provider)
 
         job = GenerationJob(
             scene_id=scene_id,
