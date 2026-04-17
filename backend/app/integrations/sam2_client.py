@@ -3,24 +3,30 @@ import uuid as _uuid
 
 import numpy as np
 from PIL import Image
-from rembg import remove, new_session
 
 from app.config import settings
 
 
 logger = logging.getLogger(__name__)
 
-_rembg_session = None
+_pipeline = None
 
 
-# Retourne (ou cree) la session rembg singleton pour eviter de recharger le modele
-def _get_session():
-    global _rembg_session
-    if _rembg_session is None:
-        logger.info("Loading rembg model (u2net)...")
-        _rembg_session = new_session("u2net")
-        logger.info("rembg model loaded")
-    return _rembg_session
+# Charge le pipeline SAM2 mask-generation une seule fois (singleton)
+def _get_pipeline():
+    global _pipeline
+    if _pipeline is None:
+        from transformers import pipeline as hf_pipeline
+
+        model_id = "facebook/sam2.1-hiera-small"
+        logger.info("Loading SAM2 model: %s (CPU)...", model_id)
+        _pipeline = hf_pipeline(
+            "mask-generation",
+            model=model_id,
+            device=-1,
+        )
+        logger.info("SAM2 model loaded")
+    return _pipeline
 
 
 #################################################
@@ -42,71 +48,116 @@ class SegmentationResult:
 
 class SAM2Client:
     """
-    Client de segmentation utilisant rembg pour separer le sujet du fond.
-    Produit : sujet PNG transparent, fond PNG, masque binaire.
+    Client de segmentation utilisant SAM2 (Segment Anything Model 2)
+    via HuggingFace transformers. Decoupe automatiquement TOUS les
+    elements de l'image en assets PNG transparents individuels.
     """
 
     def __init__(self):
         self.media_root = settings.get_media_path()
 
-    # Segmente une image en sujet (sans fond) + fond + masque
-    def segment_image(self, image_path: str) -> SegmentationResult:
+    # Segmente une image en multiples assets via SAM2 automatic mask generation
+    def segment_image(
+        self,
+        image_path: str,
+        min_mask_area_ratio: float = 0.005,
+        max_masks: int = 20,
+        pred_iou_thresh: float = 0.86,
+        stability_score_thresh: float = 0.90,
+    ) -> SegmentationResult:
         abs_path = self.media_root / image_path
         if not abs_path.exists():
             raise FileNotFoundError(f"Image not found: {abs_path}")
 
-        logger.info("Segmenting image: %s", image_path)
-        original = Image.open(abs_path).convert("RGBA")
+        logger.info("Segmenting image with SAM2: %s", image_path)
+        original = Image.open(abs_path).convert("RGB")
         width, height = original.size
+        total_pixels = width * height
 
-        session = _get_session()
-        subject_rgba = remove(original, session=session, bgcolor=None)
+        pipe = _get_pipeline()
+        outputs = pipe(
+            original,
+            points_per_batch=64,
+            pred_iou_thresh=pred_iou_thresh,
+            stability_score_thresh=stability_score_thresh,
+        )
 
-        alpha = np.array(subject_rgba.split()[-1])
-        mask_binary = (alpha > 128).astype(np.uint8) * 255
-        mask_image = Image.fromarray(mask_binary, mode="L")
+        masks = outputs.get("masks", [])
+        scores = outputs.get("scores", [None] * len(masks))
 
-        bg_image = original.convert("RGB").copy()
-        bg_array = np.array(bg_image)
-        mask_3ch = np.stack([mask_binary] * 3, axis=-1)
-        bg_array[mask_3ch > 128] = 0
-        bg_image = Image.fromarray(bg_array)
+        logger.info("SAM2 returned %d raw masks", len(masks))
+
+        original_rgba = original.copy().convert("RGBA")
+        original_np = np.array(original_rgba)
+
+        sorted_items = sorted(
+            zip(masks, scores),
+            key=lambda x: x[1] if x[1] is not None else 0,
+            reverse=True,
+        )
 
         result = SegmentationResult()
+        asset_index = 0
 
-        subject_path = self._save_png(subject_rgba, "segmentation")
-        mask_path = self._save_png(mask_image, "masks")
+        for mask, score in sorted_items:
+            mask_np = np.array(mask).astype(bool)
 
-        bbox = self._compute_bbox(alpha)
+            mask_area = mask_np.sum()
+            area_ratio = mask_area / total_pixels
 
-        result.assets.append({
-            "asset_type": "body",
-            "subtype": "subject_foreground",
-            "layer_name": "Subject",
-            "original_png_url": subject_path,
-            "mask_url": mask_path,
-            "bounding_box": bbox,
-            "confidence_score": 0.95,
-        })
+            if area_ratio < min_mask_area_ratio:
+                continue
+            if asset_index >= max_masks:
+                break
 
-        bg_path = self._save_png(bg_image, "segmentation")
-        result.assets.append({
-            "asset_type": "background_element",
-            "subtype": "background",
-            "layer_name": "Background",
-            "original_png_url": bg_path,
-            "mask_url": None,
-            "bounding_box": {"x": 0, "y": 0, "w": width, "h": height},
-            "confidence_score": 0.90,
-        })
+            asset_index += 1
 
-        logger.info("Segmentation done: %d assets", len(result.assets))
+            is_background = area_ratio > 0.75
+            asset_type = "background_element" if is_background else "object"
+            layer_name = "Background" if is_background else f"Element {asset_index}"
+
+            element_rgba = np.zeros_like(original_np)
+            element_rgba[:, :, :3] = original_np[:, :, :3]
+            element_rgba[:, :, 3] = (mask_np * 255).astype(np.uint8)
+            element_img = Image.fromarray(element_rgba, "RGBA")
+
+            bbox = self._compute_bbox(mask_np)
+
+            if not is_background and bbox["w"] > 0 and bbox["h"] > 0:
+                cropped = element_img.crop((
+                    bbox["x"], bbox["y"],
+                    bbox["x"] + bbox["w"], bbox["y"] + bbox["h"],
+                ))
+            else:
+                cropped = element_img
+
+            element_path = self._save_png(cropped, "segmentation")
+
+            mask_img = Image.fromarray((mask_np * 255).astype(np.uint8), "L")
+            mask_path = self._save_png(mask_img, "masks")
+
+            conf = float(score) if score is not None else 0.0
+
+            result.assets.append({
+                "asset_type": asset_type,
+                "subtype": "auto_sam2",
+                "layer_name": layer_name,
+                "original_png_url": element_path,
+                "mask_url": mask_path,
+                "bounding_box": bbox,
+                "confidence_score": round(conf, 4),
+            })
+
+        logger.info(
+            "Segmentation done: %d assets extracted from %d raw masks",
+            len(result.assets), len(masks),
+        )
         return result
 
-    # Calcule la bounding box du masque (zone non-transparente)
-    def _compute_bbox(self, alpha: np.ndarray) -> dict:
-        rows = np.any(alpha > 128, axis=1)
-        cols = np.any(alpha > 128, axis=0)
+    # Calcule la bounding box d'un masque booleen
+    def _compute_bbox(self, mask: np.ndarray) -> dict:
+        rows = np.any(mask, axis=1)
+        cols = np.any(mask, axis=0)
         if not rows.any():
             return {"x": 0, "y": 0, "w": 0, "h": 0}
         y_min, y_max = np.where(rows)[0][[0, -1]]

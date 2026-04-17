@@ -34,6 +34,11 @@ def segment_image_task(self, job_id: str, scene_id: str) -> dict:
             ), {"jid": job_id}).mappings().one()
             image_path = row["source_image_url"]
 
+            session.execute(text(
+                "DELETE FROM assets WHERE scene_id = :sid"
+            ), {"sid": scene_id})
+            session.commit()
+
             from app.integrations.sam2_client import SAM2Client
             client = SAM2Client()
             result = client.segment_image(image_path)
