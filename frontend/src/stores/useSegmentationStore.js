@@ -87,6 +87,20 @@ const useSegmentationStore = create((set, get) => ({
     }
   },
 
+  // Supprime tous les assets d'une scene cote serveur + store
+  clearSceneAssets: async (sceneId) => {
+    try {
+      await segApi.clearAssets(sceneId);
+      set((s) => ({
+        assets: { ...s.assets, [sceneId]: [] },
+        jobs: { ...s.jobs, [sceneId]: undefined },
+      }));
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
   // Reinitialise le store
   clearAll: () => set({ jobs: {}, assets: {}, loading: {}, error: null }),
 }));

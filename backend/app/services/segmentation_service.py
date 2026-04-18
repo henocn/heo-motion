@@ -44,7 +44,7 @@ class SegmentationService:
         job = SegmentationJob(
             scene_id=scene_id,
             source_image_url=scene.generated_image_url,
-            sam_model_version="rembg_u2net",
+            sam_model_version="sam2.1-hiera-small",
             status=JobStatus.QUEUED.value,
         )
         job = await self.job_repo.create(job)
@@ -81,3 +81,18 @@ class SegmentationService:
 
         assets = await self.asset_repo.get_by_scene(scene_id)
         return [AssetResponse.model_validate(a) for a in assets]
+
+    # Supprime tous les assets d'une scene
+    async def clear_assets(self, scene_id: uuid.UUID) -> None:
+        scene = await self.scene_repo.get_by_id(scene_id)
+        if not scene:
+            raise NotFoundException("Scene", str(scene_id))
+
+        assets = await self.asset_repo.get_by_scene(scene_id)
+        for asset in assets:
+            await self.asset_repo.delete(asset)
+
+        scene.segmentation_status = None
+        await self.session.flush()
+        await self.session.commit()
+        logger.info("Cleared %d assets for scene %s", len(assets), scene_id)

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import {
   Scissors,
-  Image as ImageIcon,
   Layers,
   Check,
   Trash2,
@@ -10,9 +9,10 @@ import {
   Download,
   Play,
   AlertCircle,
+  RefreshCw,
+  Eraser,
+  FileDown,
 } from "lucide-react";
-import Button from "../components/ui/Button";
-import Card, { CardBody } from "../components/ui/Card";
 import Badge from "../components/ui/Badge";
 import Spinner from "../components/ui/Spinner";
 import EmptyState from "../components/ui/EmptyState";
@@ -22,10 +22,11 @@ import useSegmentationStore from "../stores/useSegmentationStore";
 import useUIStore from "../stores/useUIStore";
 import usePolling from "../hooks/usePolling";
 import { JOB_STATUS, ASSET_TYPE_LABELS } from "../utils/constants";
+import { exportScenePsd } from "../api/segmentation";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
-// Page de segmentation : decoupe les images generees en assets
+// Page de segmentation : decoupe les images generees en assets via SAM2
 export default function SegmentationPage() {
   const { projectId } = useParams();
   const { scenes, fetchScenes } = useSceneStore();
@@ -38,13 +39,17 @@ export default function SegmentationPage() {
     fetchAssets,
     approveAsset,
     deleteAsset,
+    clearSceneAssets,
   } = useSegmentationStore();
   const addToast = useUIStore((s) => s.addToast);
 
   const [previewAsset, setPreviewAsset] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [clearTarget, setClearTarget] = useState(null);
+  const [clearing, setClearing] = useState(false);
   const [segmentingAll, setSegmentingAll] = useState(false);
+  const [psdExportingId, setPsdExportingId] = useState(null);
 
   useEffect(() => {
     if (projectId) fetchScenes(projectId);
@@ -141,6 +146,35 @@ export default function SegmentationPage() {
     }
   }
 
+  // Telecharge le PSD multi-calques pour une scene
+  async function handleExportPsd(sceneId) {
+    setPsdExportingId(sceneId);
+    try {
+      await exportScenePsd(sceneId);
+      addToast("PSD téléchargé", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setPsdExportingId(null);
+    }
+  }
+
+  // Confirme la suppression de tous les assets d'une scene
+  async function confirmClear() {
+    if (!clearTarget) return;
+    setClearing(true);
+    try {
+      await clearSceneAssets(clearTarget.sceneId);
+      if (projectId) fetchScenes(projectId);
+      addToast("Assets supprimés", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setClearing(false);
+      setClearTarget(null);
+    }
+  }
+
   // Ferme la modal preview avec Escape
   useEffect(() => {
     if (!previewAsset) return;
@@ -176,19 +210,22 @@ export default function SegmentationPage() {
             Segmentation
           </h2>
           <p className="mt-0.5 text-sm text-text-muted">
-            Découpez les images en éléments animables (sujet, fond)
+            Découpez les images en éléments animables via SAM2
           </p>
         </div>
         {pendingCount > 0 && (
-          <Button
-            size="sm"
+          <button
             onClick={handleSegmentAll}
-            loading={segmentingAll}
             disabled={segmentingAll}
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary-600 px-4 text-xs font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
           >
-            <Play className="h-3.5 w-3.5" />
+            {segmentingAll ? (
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
             Segmenter tout ({pendingCount})
-          </Button>
+          </button>
         )}
       </div>
 
@@ -205,148 +242,172 @@ export default function SegmentationPage() {
           const isDone = sceneAssets.length > 0;
 
           return (
-            <Card key={scene.id}>
-              <CardBody>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-16 w-24 overflow-hidden rounded-lg bg-surface-dim shrink-0">
-                      <img
-                        src={`${API_BASE}/media/${scene.generated_image_url}`}
-                        alt={`Scène ${index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-sm font-semibold text-text-primary">
-                        Scène {index + 1}
-                      </span>
-                      <p className="text-xs text-text-muted line-clamp-1 mt-0.5">
-                        {scene.visual_description}
-                      </p>
-                    </div>
+            <div key={scene.id} className="rounded-xl border border-border bg-surface overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-16 overflow-hidden rounded-md bg-surface-dim shrink-0">
+                    <img
+                      src={`${API_BASE}/media/${scene.generated_image_url}`}
+                      alt={`Scène ${index + 1}`}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    {isRunning && (
-                      <Badge color="bg-amber-50 text-amber-600" dot="bg-amber-500">
-                        En cours...
-                      </Badge>
-                    )}
-                    {isDone && !isRunning && (
-                      <Badge color="bg-emerald-50 text-emerald-600">
-                        {sceneAssets.length} asset(s)
-                      </Badge>
-                    )}
-                    {!isDone && !isRunning && (
-                      <Button size="sm" onClick={() => handleSegment(scene.id)}>
-                        <Scissors className="h-3.5 w-3.5" />
-                        Segmenter
-                      </Button>
-                    )}
-                    {isDone && !isRunning && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleSegment(scene.id)}
-                      >
-                        <Scissors className="h-3.5 w-3.5" />
-                        Re-segmenter
-                      </Button>
-                    )}
-                  </div>
+                  <span className="text-sm font-semibold text-text-primary">
+                    Scène {index + 1}
+                  </span>
                 </div>
 
-                {isRunning && (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <Spinner />
-                      <p className="mt-2 text-xs text-text-muted">
-                        Segmentation en cours...
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {isRunning && (
+                    <Badge color="bg-amber-50 text-amber-600" dot="bg-amber-500">
+                      En cours...
+                    </Badge>
+                  )}
 
-                {job?.status === "failed" && !isRunning && (
-                  <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 mb-4">
-                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
-                    <p className="text-xs text-red-600">{job.error_message}</p>
-                  </div>
-                )}
+                  {isDone && !isRunning && (
+                    <Badge color="bg-emerald-50 text-emerald-600">
+                      {sceneAssets.length} assets
+                    </Badge>
+                  )}
 
-                {isDone && !isRunning && (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {sceneAssets.map((asset) => (
+                  {/* Segmenter / Re-segmenter */}
+                  {!isRunning && (
+                    <button
+                      onClick={() => handleSegment(scene.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-primary-50 hover:text-primary-600"
+                      title={isDone ? "Re-segmenter" : "Segmenter"}
+                    >
+                      {isDone ? (
+                        <RefreshCw className="h-4 w-4" />
+                      ) : (
+                        <Scissors className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Exporter un PSD unique */}
+                  {isDone && !isRunning && (
+                    <button
+                      type="button"
+                      onClick={() => handleExportPsd(scene.id)}
+                      disabled={psdExportingId === scene.id}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-50"
+                      title="Exporter PSD"
+                    >
+                      {psdExportingId === scene.id ? (
+                        <Spinner size="sm" className="text-primary-500" />
+                      ) : (
+                        <FileDown className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Vider tous les assets */}
+                  {isDone && !isRunning && (
+                    <button
+                      onClick={() => setClearTarget({ sceneId: scene.id, index: index + 1 })}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-red-50 hover:text-red-500"
+                      title="Vider les assets"
+                    >
+                      <Eraser className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {isRunning && (
+                <div className="flex items-center justify-center py-10">
+                  <div className="text-center">
+                    <Spinner />
+                    <p className="mt-2 text-xs text-text-muted">
+                      Segmentation en cours...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {job?.status === "failed" && !isRunning && (
+                <div className="flex items-start gap-2 mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+                  <p className="text-xs text-red-600">{job.error_message}</p>
+                </div>
+              )}
+
+              {isDone && !isRunning && (
+                <div className="grid gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  {sceneAssets.map((asset) => (
+                    <div
+                      key={asset.id}
+                      className="group relative rounded-lg border border-border bg-surface-dim overflow-hidden"
+                    >
                       <div
-                        key={asset.id}
-                        className="group relative rounded-lg border border-border bg-surface-dim overflow-hidden"
+                        className="aspect-square cursor-pointer bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]"
+                        onClick={() => setPreviewAsset(asset)}
                       >
-                        <div
-                          className="aspect-square cursor-pointer bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]"
-                          onClick={() => setPreviewAsset(asset)}
-                        >
-                          {asset.original_png_url && (
-                            <img
-                              src={`${API_BASE}/media/${asset.original_png_url}`}
-                              alt={asset.layer_name || asset.asset_type}
-                              className="h-full w-full object-contain transition-opacity group-hover:opacity-90"
-                            />
+                        {asset.original_png_url && (
+                          <img
+                            src={`${API_BASE}/media/${asset.original_png_url}`}
+                            alt={asset.layer_name || asset.asset_type}
+                            className="h-full w-full object-contain transition-opacity group-hover:opacity-90"
+                          />
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between px-2 py-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium text-text-primary truncate">
+                            {asset.layer_name || ASSET_TYPE_LABELS[asset.asset_type] || asset.asset_type}
+                          </p>
+                          {asset.confidence_score != null && (
+                            <p className="text-[10px] text-text-muted">
+                              {Math.round(asset.confidence_score * 100)}%
+                            </p>
                           )}
                         </div>
-
-                        <div className="px-3 py-2">
-                          <div className="flex items-center justify-between">
-                            <div className="min-w-0">
-                              <p className="text-xs font-medium text-text-primary truncate">
-                                {asset.layer_name || ASSET_TYPE_LABELS[asset.asset_type] || asset.asset_type}
-                              </p>
-                              <p className="text-[10px] text-text-muted">
-                                {ASSET_TYPE_LABELS[asset.asset_type] || asset.asset_type}
-                                {asset.confidence_score != null && (
-                                  <span> · {Math.round(asset.confidence_score * 100)}%</span>
-                                )}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              {asset.user_approved ? (
-                                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
-                                  <Check className="h-3 w-3" />
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    approveAsset(scene.id, asset.id)
-                                      .then(() => addToast("Asset approuvé", "success"))
-                                      .catch((e) => addToast(e.message, "error"));
-                                  }}
-                                  className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-emerald-50 hover:text-emerald-600"
-                                  title="Approuver"
-                                >
-                                  <Check className="h-3 w-3" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() =>
-                                  setDeleteTarget({
-                                    sceneId: scene.id,
-                                    assetId: asset.id,
-                                    name: asset.layer_name || asset.asset_type,
-                                  })
-                                }
-                                className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-red-50 hover:text-red-500"
-                                title="Supprimer"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {asset.user_approved ? (
+                            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+                              <Check className="h-3 w-3" />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                approveAsset(scene.id, asset.id)
+                                  .then(() => addToast("Asset approuvé", "success"))
+                                  .catch((e) => addToast(e.message, "error"));
+                              }}
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-emerald-50 hover:text-emerald-600"
+                              title="Approuver"
+                            >
+                              <Check className="h-3 w-3" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() =>
+                              setDeleteTarget({
+                                sceneId: scene.id,
+                                assetId: asset.id,
+                                name: asset.layer_name || asset.asset_type,
+                              })
+                            }
+                            className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-red-50 hover:text-red-500"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!isDone && !isRunning && !(job?.status === "failed") && (
+                <div className="flex items-center justify-center py-10 text-text-muted">
+                  <p className="text-xs">Cliquez sur <Scissors className="inline h-3.5 w-3.5 mx-0.5" /> pour segmenter</p>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
@@ -360,6 +421,7 @@ export default function SegmentationPage() {
                 href={`${API_BASE}/media/${previewAsset.original_png_url}`}
                 download
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                title="Télécharger"
               >
                 <Download className="h-5 w-5" />
               </a>
@@ -401,13 +463,24 @@ export default function SegmentationPage() {
         </div>
       )}
 
+      {/* Confirm suppression 1 asset */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         title="Supprimer l'asset"
-        message={`Supprimer l'asset « ${deleteTarget?.name} » ? Cette action est irréversible.`}
+        message={`Supprimer « ${deleteTarget?.name} » ?`}
         loading={deleting}
+      />
+
+      {/* Confirm vider tous les assets */}
+      <ConfirmDialog
+        isOpen={!!clearTarget}
+        onClose={() => setClearTarget(null)}
+        onConfirm={confirmClear}
+        title="Vider les assets"
+        message={`Supprimer tous les assets de la scène ${clearTarget?.index} ? Cette action est irréversible.`}
+        loading={clearing}
       />
     </div>
   );

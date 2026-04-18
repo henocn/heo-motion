@@ -28,3 +28,31 @@ export async function approveAsset(assetId) {
 export async function deleteAsset(assetId) {
   await apiClient.delete(`/assets/${assetId}`);
 }
+
+// Supprime tous les assets d'une scene
+export async function clearAssets(sceneId) {
+  await apiClient.delete(`/scenes/${sceneId}/assets`);
+}
+
+// Telecharge un PSD unique (reference + calques positionnes)
+export async function exportScenePsd(sceneId) {
+  const res = await apiClient.get(`/scenes/${sceneId}/export-psd`, {
+    responseType: "blob",
+    timeout: 300000,
+  });
+  const blob = res.data;
+  let filename = `scene-${String(sceneId).slice(0, 8)}-segmentation.psd`;
+  const cd = res.headers["content-disposition"];
+  if (cd) {
+    const m = /filename="([^"]+)"/.exec(cd);
+    if (m) filename = m[1].trim();
+  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
