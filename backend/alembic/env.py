@@ -20,7 +20,8 @@ from app.models import (  # noqa: F401
 config = context.config
 
 sync_url = settings.DATABASE_URL.replace("+asyncpg", "")
-config.set_main_option("sqlalchemy.url", sync_url)
+# ConfigParser (alembic.ini) interprete % comme interpolation : les % du mot de passe URL-encode (%40, etc.) doivent etre doubles
+config.set_main_option("sqlalchemy.url", sync_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
