@@ -23,8 +23,7 @@ import useUIStore from "../stores/useUIStore";
 import usePolling from "../hooks/usePolling";
 import { JOB_STATUS, ASSET_TYPE_LABELS } from "../utils/constants";
 import { exportScenePsd } from "../api/segmentation";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+import { mediaUrl } from "../utils/mediaUrl";
 
 // Page de segmentation : decoupe les images generees en assets via SAM2
 export default function SegmentationPage() {
@@ -251,7 +250,7 @@ export default function SegmentationPage() {
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-16 overflow-hidden rounded-md bg-surface-dim shrink-0">
                     <img
-                      src={`${API_BASE}/media/${scene.generated_image_url}`}
+                      src={mediaUrl(scene.generated_image_url)}
                       alt={`Scène ${index + 1}`}
                       className="h-full w-full object-cover"
                     />
@@ -350,7 +349,7 @@ export default function SegmentationPage() {
                       >
                         {asset.original_png_url && (
                           <img
-                            src={`${API_BASE}/media/${asset.original_png_url}`}
+                            src={mediaUrl(asset.original_png_url)}
                             alt={asset.layer_name || asset.asset_type}
                             className="h-full w-full object-contain transition-opacity group-hover:opacity-90"
                           />
@@ -422,7 +421,7 @@ export default function SegmentationPage() {
           <div className="absolute right-4 top-4 flex gap-2">
             {previewAsset.original_png_url && (
               <a
-                href={`${API_BASE}/media/${previewAsset.original_png_url}`}
+                href={mediaUrl(previewAsset.original_png_url)}
                 download
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
                 title="Télécharger"
@@ -443,7 +442,7 @@ export default function SegmentationPage() {
           <div className="relative z-10 flex max-h-[90vh] max-w-[90vw] flex-col items-center">
             <div className="rounded-lg bg-[repeating-conic-gradient(#374151_0%_25%,#1f2937_0%_50%)] bg-[length:20px_20px] p-2 shadow-2xl">
               <img
-                src={`${API_BASE}/media/${previewAsset.original_png_url}`}
+                src={mediaUrl(previewAsset.original_png_url)}
                 alt={previewAsset.layer_name || previewAsset.asset_type}
                 className="max-h-[80vh] max-w-full object-contain"
               />
@@ -454,7 +453,7 @@ export default function SegmentationPage() {
               </span>
               {previewAsset.mask_url && (
                 <a
-                  href={`${API_BASE}/media/${previewAsset.mask_url}`}
+                  href={mediaUrl(previewAsset.mask_url)}
                   download
                   className="rounded-full bg-white/10 px-4 py-1.5 text-sm text-white/70 hover:bg-white/20 hover:text-white"
                 >

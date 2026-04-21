@@ -24,8 +24,7 @@ import useGenerationStore from "../stores/useGenerationStore";
 import useUIStore from "../stores/useUIStore";
 import usePolling from "../hooks/usePolling";
 import { JOB_STATUS } from "../utils/constants";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+import { mediaUrl } from "../utils/mediaUrl";
 
 const STATUS_MAP = {
   pending: { color: "bg-slate-50 text-slate-500", label: "En attente" },
@@ -316,7 +315,7 @@ export default function GenerationPage() {
                     </div>
                   ) : scene.generated_image_url ? (
                     <img
-                      src={`${API_BASE}/media/${scene.generated_image_url}`}
+                      src={mediaUrl(scene.generated_image_url)}
                       alt={`Scène ${index + 1}`}
                       className="h-full w-full cursor-pointer object-cover transition-opacity hover:opacity-90"
                       onClick={() => setPreviewScene({ ...scene, index })}
@@ -399,7 +398,7 @@ export default function GenerationPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="absolute right-4 top-4 flex gap-2">
             <a
-              href={`${API_BASE}/media/${previewScene.generated_image_url}`}
+              href={mediaUrl(previewScene.generated_image_url)}
               download
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
             >
@@ -420,7 +419,7 @@ export default function GenerationPage() {
 
           <div className="relative z-10 flex max-h-[90vh] max-w-[90vw] flex-col items-center">
             <img
-              src={`${API_BASE}/media/${previewScene.generated_image_url}`}
+              src={mediaUrl(previewScene.generated_image_url)}
               alt={`Scène ${previewScene.index + 1}`}
               className="max-h-[85vh] max-w-full rounded-lg object-contain shadow-2xl"
             />
