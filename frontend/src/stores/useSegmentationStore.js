@@ -2,7 +2,7 @@ import { create } from "zustand";
 import * as segApi from "../api/segmentation";
 
 // Store pour la segmentation : jobs, assets, polling
-const useSegmentationStore = create((set, get) => ({
+const useSegmentationStore = create((set) => ({
   jobs: {},
   assets: {},
   loading: {},

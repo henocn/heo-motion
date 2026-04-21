@@ -1,11 +1,5 @@
 import { useEffect } from "react";
-import {
-  useParams,
-  NavLink,
-  Outlet,
-  useNavigate,
-  useLocation,
-} from "react-router-dom";
+import { useParams, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   FileText,
@@ -34,7 +28,6 @@ const TABS = [
 export default function ProjectPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentProject, loading, fetchProject, clearCurrentProject } =
     useProjectStore();
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import {
   Scissors,
@@ -55,8 +55,12 @@ export default function SegmentationPage() {
     if (projectId) fetchScenes(projectId);
   }, [projectId, fetchScenes]);
 
-  const eligibleScenes = scenes.filter(
-    (s) => s.generated_image_url && s.image_status !== "pending"
+  const eligibleScenes = useMemo(
+    () =>
+      scenes.filter(
+        (s) => s.generated_image_url && s.image_status !== "pending"
+      ),
+    [scenes]
   );
 
   useEffect(() => {
@@ -66,7 +70,7 @@ export default function SegmentationPage() {
         fetchStatus(scene.id);
       }
     });
-  }, [scenes.length]);
+  }, [eligibleScenes, fetchAssets, fetchStatus]);
 
   const hasRunningJobs =
     Object.values(jobs).some(
@@ -93,7 +97,7 @@ export default function SegmentationPage() {
         });
       }
     });
-  }, [fetchStatus, fetchAssets, fetchScenes, projectId, eligibleScenes.length]);
+  }, [eligibleScenes, fetchStatus, fetchAssets, fetchScenes, projectId]);
 
   usePolling(pollRunning, 4000, hasRunningJobs);
 
