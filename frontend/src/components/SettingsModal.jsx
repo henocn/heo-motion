@@ -47,7 +47,30 @@ export default function SettingsModal({ isOpen, onClose }) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Paramètres" size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Paramètres"
+      size="lg"
+      footer={
+        !loading && form ? (
+          <div className="flex items-center justify-end gap-3">
+            {saved && (
+              <span className="text-xs font-medium text-emerald-600">
+                Paramètres enregistrés
+              </span>
+            )}
+            <Button variant="secondary" onClick={onClose}>
+              Fermer
+            </Button>
+            <Button onClick={handleSave} loading={saving}>
+              <Save className="h-3.5 w-3.5" />
+              Enregistrer
+            </Button>
+          </div>
+        ) : null
+      }
+    >
       {loading || !form ? (
         <div className="flex items-center justify-center py-12">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
@@ -174,8 +197,8 @@ export default function SettingsModal({ isOpen, onClose }) {
             <textarea
               value={form.system_prompt}
               onChange={(e) => update("system_prompt", e.target.value)}
-              rows={6}
-              className="w-full rounded-lg border border-border bg-surface-dim px-3 py-2 text-xs text-text-primary leading-relaxed focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 resize-none"
+              rows={8}
+              className="min-h-[140px] w-full resize-y rounded-lg border border-border bg-surface-dim px-3 py-2 text-xs leading-relaxed text-text-primary focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400"
             />
           </div>
 
@@ -187,25 +210,9 @@ export default function SettingsModal({ isOpen, onClose }) {
             <textarea
               value={form.negative_prompt}
               onChange={(e) => update("negative_prompt", e.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-border bg-surface-dim px-3 py-2 text-xs text-text-primary leading-relaxed focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 resize-none"
+              rows={4}
+              className="min-h-[72px] w-full resize-y rounded-lg border border-border bg-surface-dim px-3 py-2 text-xs leading-relaxed text-text-primary focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400"
             />
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
-            {saved && (
-              <span className="text-xs text-emerald-600 font-medium">
-                Paramètres enregistrés
-              </span>
-            )}
-            <Button variant="secondary" onClick={onClose}>
-              Fermer
-            </Button>
-            <Button onClick={handleSave} loading={saving}>
-              <Save className="h-3.5 w-3.5" />
-              Enregistrer
-            </Button>
           </div>
         </div>
       )}
