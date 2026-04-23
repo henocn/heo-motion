@@ -80,7 +80,6 @@ export const ROUTES = {
   PROJECT: "/projects/:projectId",
   STORYBOARD: "/projects/:projectId/storyboard",
   GENERATION: "/projects/:projectId/generation",
-  SEGMENTATION: "/projects/:projectId/segmentation",
   EXPORT: "/projects/:projectId/export",
 };
 

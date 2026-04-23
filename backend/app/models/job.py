@@ -55,7 +55,7 @@ class GenerationJob(Base):
 
 
 class SegmentationJob(Base):
-    """Job de segmentation d'image via SAM2 local."""
+    """Job de segmentation d'image (historique / futur pipeline)."""
 
     __tablename__ = "segmentation_jobs"
 
@@ -67,7 +67,7 @@ class SegmentationJob(Base):
     )
     source_image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     sam_model_version: Mapped[str | None] = mapped_column(
-        String(100), nullable=True, default="sam2_hiera_large"
+        String(100), nullable=True, default="replicate_sam3_image"
     )
     mediapipe_pose_used: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False

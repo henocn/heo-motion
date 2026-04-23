@@ -1,490 +1,256 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import {
-  Scissors,
-  Layers,
-  Check,
-  Trash2,
-  X,
-  Download,
-  Play,
-  AlertCircle,
-  RefreshCw,
-  Eraser,
-  FileDown,
-} from "lucide-react";
-import Badge from "../components/ui/Badge";
-import Spinner from "../components/ui/Spinner";
+import { Layers, Download } from "lucide-react";
+import Button from "../components/ui/Button";
+import Card, { CardBody } from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
+import Spinner from "../components/ui/Spinner";
 import useSceneStore from "../stores/useSceneStore";
-import useSegmentationStore from "../stores/useSegmentationStore";
 import useUIStore from "../stores/useUIStore";
-import usePolling from "../hooks/usePolling";
-import { JOB_STATUS, ASSET_TYPE_LABELS } from "../utils/constants";
-import { exportScenePsd } from "../api/segmentation";
+import { postSam3Segment } from "../api/sam3";
 import { mediaUrl } from "../utils/mediaUrl";
 
-// Page de segmentation : decoupe les images generees en assets via SAM2
+const MASK_COLORS = ["green", "red", "blue", "yellow", "cyan", "magenta"];
+
+// Borne une valeur numerique entre 0 et 1 (champs formulaire)
+function clamp01(value, fallback = 0.5) {
+  const v = Number(value);
+  if (!Number.isFinite(v)) return fallback;
+  return Math.min(1, Math.max(0, v));
+}
+
+// Page : segmentation SAM3 par scene, prompts separes par des virgules
 export default function SegmentationPage() {
   const { projectId } = useParams();
-  const { scenes, fetchScenes } = useSceneStore();
-  const {
-    jobs,
-    assets,
-    loading: loadingMap,
-    startSegmentation,
-    fetchStatus,
-    fetchAssets,
-    approveAsset,
-    deleteAsset,
-    clearSceneAssets,
-  } = useSegmentationStore();
+  const { scenes, loading, fetchScenes } = useSceneStore();
   const addToast = useUIStore((s) => s.addToast);
 
-  const [previewAsset, setPreviewAsset] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [clearTarget, setClearTarget] = useState(null);
-  const [clearing, setClearing] = useState(false);
-  const [segmentingAll, setSegmentingAll] = useState(false);
-  const [psdExportingId, setPsdExportingId] = useState(null);
+  const [promptsByScene, setPromptsByScene] = useState({});
+  const [segmentingId, setSegmentingId] = useState(null);
+  const [lastResultByScene, setLastResultByScene] = useState({});
+
+  const [threshold, setThreshold] = useState(0.5);
+  const [maskColor, setMaskColor] = useState("green");
+  const [maskOnly, setMaskOnly] = useState(false);
+  const [returnZip, setReturnZip] = useState(true);
+  const [maskOpacity, setMaskOpacity] = useState(0.5);
+  const [saveOverlay, setSaveOverlay] = useState(false);
 
   useEffect(() => {
     if (projectId) fetchScenes(projectId);
   }, [projectId, fetchScenes]);
 
-  const eligibleScenes = useMemo(
-    () =>
-      scenes.filter(
-        (s) => s.generated_image_url && s.image_status !== "pending"
-      ),
-    [scenes]
-  );
+  // Met a jour le champ prompts CSV pour une scene
+  const setPromptsForScene = useCallback((sceneId, value) => {
+    setPromptsByScene((prev) => ({ ...prev, [sceneId]: value }));
+  }, []);
 
-  useEffect(() => {
-    eligibleScenes.forEach((scene) => {
-      fetchAssets(scene.id);
-      if (scene.segmentation_status === "running" || scene.segmentation_status === "queued") {
-        fetchStatus(scene.id);
-      }
-    });
-  }, [eligibleScenes, fetchAssets, fetchStatus]);
-
-  const hasRunningJobs =
-    Object.values(jobs).some(
-      (j) => j?.status === JOB_STATUS.QUEUED || j?.status === JOB_STATUS.RUNNING
-    ) || Object.values(loadingMap).some(Boolean);
-
-  const jobsRef = useRef(jobs);
-  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
-
-  const pollRunning = useCallback(() => {
-    eligibleScenes.forEach((scene) => {
-      const job = jobsRef.current[scene.id];
-      if (
-        scene.segmentation_status === "running" ||
-        scene.segmentation_status === "queued" ||
-        job?.status === JOB_STATUS.QUEUED ||
-        job?.status === JOB_STATUS.RUNNING
-      ) {
-        fetchStatus(scene.id).then((j) => {
-          if (j?.status === "completed") {
-            fetchAssets(scene.id);
-            fetchScenes(projectId);
-          }
-        });
-      }
-    });
-  }, [eligibleScenes, fetchStatus, fetchAssets, fetchScenes, projectId]);
-
-  usePolling(pollRunning, 4000, hasRunningJobs);
-
-  // Lance la segmentation pour une scene
+  // Appelle le backend SAM3 pour une scene
   async function handleSegment(sceneId) {
-    try {
-      await startSegmentation(sceneId);
-      addToast("Segmentation lancée", "info");
-    } catch (err) {
-      addToast(err.message, "error");
-    }
-  }
-
-  // Lance la segmentation pour toutes les scenes eligible
-  async function handleSegmentAll() {
-    const pending = eligibleScenes.filter(
-      (s) =>
-        s.segmentation_status !== "running" &&
-        s.segmentation_status !== "completed" &&
-        !(assets[s.id]?.length > 0)
-    );
-    if (pending.length === 0) {
-      addToast("Toutes les scènes sont déjà segmentées", "info");
+    const prompts_csv = (promptsByScene[sceneId] ?? "").trim();
+    if (!prompts_csv) {
+      addToast("Indiquez au moins un prompt (separes par des virgules).", "error");
       return;
     }
-    setSegmentingAll(true);
-    let count = 0;
-    for (const scene of pending) {
-      try {
-        await startSegmentation(scene.id);
-        count++;
-      } catch { /* continue */ }
-    }
-    setSegmentingAll(false);
-    addToast(`${count} segmentation(s) lancée(s)`, "info");
-  }
-
-  // Confirme la suppression d'un asset
-  async function confirmDelete() {
-    if (!deleteTarget) return;
-    setDeleting(true);
+    setSegmentingId(sceneId);
     try {
-      await deleteAsset(deleteTarget.sceneId, deleteTarget.assetId);
-      addToast("Asset supprimé", "success");
+      const data = await postSam3Segment(sceneId, {
+        prompts_csv,
+        threshold: clamp01(threshold),
+        mask_only: maskOnly,
+        mask_color: maskColor,
+        return_zip: returnZip,
+        mask_opacity: clamp01(maskOpacity),
+        save_overlay: saveOverlay,
+      });
+      setLastResultByScene((prev) => ({ ...prev, [sceneId]: data }));
+      addToast("Segmentation terminee — ZIP disponible", "success");
     } catch (err) {
-      addToast(err.message, "error");
+      addToast(err.message || "Erreur segmentation", "error");
     } finally {
-      setDeleting(false);
-      setDeleteTarget(null);
+      setSegmentingId(null);
     }
   }
 
-  // Telecharge le PSD multi-calques pour une scene
-  async function handleExportPsd(sceneId) {
-    setPsdExportingId(sceneId);
-    try {
-      await exportScenePsd(sceneId);
-      addToast("PSD téléchargé", "success");
-    } catch (err) {
-      addToast(err.message, "error");
-    } finally {
-      setPsdExportingId(null);
-    }
+  if (loading && scenes.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center py-32">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
-  // Confirme la suppression de tous les assets d'une scene
-  async function confirmClear() {
-    if (!clearTarget) return;
-    setClearing(true);
-    try {
-      await clearSceneAssets(clearTarget.sceneId);
-      if (projectId) fetchScenes(projectId);
-      addToast("Assets supprimés", "success");
-    } catch (err) {
-      addToast(err.message, "error");
-    } finally {
-      setClearing(false);
-      setClearTarget(null);
-    }
-  }
-
-  // Ferme la modal preview avec Escape
-  useEffect(() => {
-    if (!previewAsset) return;
-    const handler = (e) => e.key === "Escape" && setPreviewAsset(null);
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [previewAsset]);
-
-  if (eligibleScenes.length === 0) {
+  if (scenes.length === 0) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-6">
         <EmptyState
-          icon={<Scissors className="h-12 w-12" strokeWidth={1} />}
-          title="Aucune image à segmenter"
-          description="Générez d'abord des images dans l'onglet Génération"
+          icon={<Layers className="h-12 w-12" strokeWidth={1} />}
+          title="Aucune scene"
+          description="Ajoutez des scenes au projet pour lancer la segmentation"
         />
       </div>
     );
   }
 
-  const pendingCount = eligibleScenes.filter(
-    (s) =>
-      s.segmentation_status !== "running" &&
-      s.segmentation_status !== "completed" &&
-      !(assets[s.id]?.length > 0)
-  ).length;
-
   return (
     <div className="mx-auto max-w-5xl px-6 py-6">
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-text-primary">
-            Segmentation
-          </h2>
-          <p className="mt-0.5 text-sm text-text-muted">
-            Découpez les images en éléments animables via SAM2
-          </p>
-        </div>
-        {pendingCount > 0 && (
-          <button
-            onClick={handleSegmentAll}
-            disabled={segmentingAll}
-            className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary-600 px-4 text-xs font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
-          >
-            {segmentingAll ? (
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            ) : (
-              <Play className="h-3.5 w-3.5" />
-            )}
-            Segmenter tout ({pendingCount})
-          </button>
-        )}
+      <div className="mb-6">
+        <h2 className="text-base font-semibold text-text-primary">
+          Segmentation (SAM3 / Replicate)
+        </h2>
+        <p className="mt-0.5 text-sm text-text-muted">
+          Saisissez plusieurs prompts separes par des virgules (ex : clothes, person, face).
+          Une image generee est requise par scene.
+        </p>
       </div>
 
-      <div className="space-y-6">
-        {eligibleScenes.map((scene, index) => {
-          const job = jobs[scene.id];
-          const sceneAssets = assets[scene.id] || [];
-          const isLoading = !!loadingMap[scene.id];
-          const isRunning =
-            isLoading ||
-            scene.segmentation_status === "running" ||
-            job?.status === JOB_STATUS.QUEUED ||
-            job?.status === JOB_STATUS.RUNNING;
-          const isDone = sceneAssets.length > 0;
+      <Card className="mb-6">
+        <CardBody className="space-y-4">
+          <p className="text-xs font-medium text-text-secondary">
+            Options avancees (toutes les scenes)
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="flex flex-col gap-1 text-xs text-text-muted">
+              Seuil (0–1)
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                value={threshold}
+                onChange={(e) => setThreshold(e.target.valueAsNumber)}
+                className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-text-primary"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-text-muted">
+              Couleur du masque
+              <select
+                value={maskColor}
+                onChange={(e) => setMaskColor(e.target.value)}
+                className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-text-primary"
+              >
+                {MASK_COLORS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-text-muted">
+              Opacite masque (0–1)
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                value={maskOpacity}
+                onChange={(e) => setMaskOpacity(e.target.valueAsNumber)}
+                className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-text-primary"
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-4 text-xs text-text-secondary">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={maskOnly}
+                onChange={(e) => setMaskOnly(e.target.checked)}
+              />
+              Masque uniquement (noir et blanc)
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={returnZip}
+                onChange={(e) => setReturnZip(e.target.checked)}
+              />
+              Retour ZIP (masques PNG)
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={saveOverlay}
+                onChange={(e) => setSaveOverlay(e.target.checked)}
+              />
+              Inclure overlay dans le ZIP
+            </label>
+          </div>
+        </CardBody>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {scenes.map((scene, index) => {
+          const hasImage = Boolean(scene.generated_image_url);
+          const busy = segmentingId === scene.id;
+          const last = lastResultByScene[scene.id];
 
           return (
-            <div key={scene.id} className="rounded-xl border border-border bg-surface overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-16 overflow-hidden rounded-md bg-surface-dim shrink-0">
+            <Card key={scene.id}>
+              <CardBody className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-text-primary">
+                    Scene {index + 1}
+                  </span>
+                  {!hasImage && (
+                    <span className="text-xs text-amber-600">Image requise</span>
+                  )}
+                </div>
+                <p className="text-xs text-text-muted line-clamp-2">
+                  {scene.visual_description}
+                </p>
+
+                {hasImage && (
+                  <div className="overflow-hidden rounded-lg border border-border bg-surface-dim">
                     <img
                       src={mediaUrl(scene.generated_image_url)}
-                      alt={`Scène ${index + 1}`}
-                      className="h-full w-full object-cover"
+                      alt=""
+                      className="max-h-40 w-full object-contain"
                     />
                   </div>
-                  <span className="text-sm font-semibold text-text-primary">
-                    Scène {index + 1}
-                  </span>
-                </div>
+                )}
 
-                <div className="flex items-center gap-1.5">
-                  {isRunning && (
-                    <Badge color="bg-amber-50 text-amber-600" dot="bg-amber-500">
-                      En cours...
-                    </Badge>
-                  )}
+                <label className="block text-xs font-medium text-text-secondary">
+                  Prompts (virgules)
+                  <textarea
+                    value={promptsByScene[scene.id] ?? ""}
+                    onChange={(e) => setPromptsForScene(scene.id, e.target.value)}
+                    placeholder="clothes, person, face"
+                    rows={2}
+                    disabled={!hasImage || busy}
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 disabled:opacity-50"
+                  />
+                </label>
 
-                  {isDone && !isRunning && (
-                    <Badge color="bg-emerald-50 text-emerald-600">
-                      {sceneAssets.length} assets
-                    </Badge>
-                  )}
+                {last?.zip_path && (
+                  <a
+                    href={mediaUrl(last.zip_path)}
+                    download
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Telecharger le ZIP
+                  </a>
+                )}
+                {last?.prompt_used && (
+                  <p className="text-[11px] text-text-muted">
+                    Envoye a Replicate :{" "}
+                    <span className="text-text-secondary">{last.prompt_used}</span>
+                  </p>
+                )}
 
-                  {/* Segmenter / Re-segmenter */}
-                  {!isRunning && (
-                    <button
-                      onClick={() => handleSegment(scene.id)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-primary-50 hover:text-primary-600"
-                      title={isDone ? "Re-segmenter" : "Segmenter"}
-                    >
-                      {isDone ? (
-                        <RefreshCw className="h-4 w-4" />
-                      ) : (
-                        <Scissors className="h-4 w-4" />
-                      )}
-                    </button>
-                  )}
-
-                  {/* Exporter un PSD unique */}
-                  {isDone && !isRunning && (
-                    <button
-                      type="button"
-                      onClick={() => handleExportPsd(scene.id)}
-                      disabled={psdExportingId === scene.id}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-hover hover:text-text-primary disabled:opacity-50"
-                      title="Exporter PSD"
-                    >
-                      {psdExportingId === scene.id ? (
-                        <Spinner size="sm" className="text-primary-500" />
-                      ) : (
-                        <FileDown className="h-4 w-4" />
-                      )}
-                    </button>
-                  )}
-
-                  {/* Vider tous les assets */}
-                  {isDone && !isRunning && (
-                    <button
-                      onClick={() => setClearTarget({ sceneId: scene.id, index: index + 1 })}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-red-50 hover:text-red-500"
-                      title="Vider les assets"
-                    >
-                      <Eraser className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {isRunning && (
-                <div className="flex items-center justify-center py-10">
-                  <div className="text-center">
-                    <Spinner />
-                    <p className="mt-2 text-xs text-text-muted">
-                      Segmentation en cours...
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {job?.status === "failed" && !isRunning && (
-                <div className="flex items-start gap-2 mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2">
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
-                  <p className="text-xs text-red-600">{job.error_message}</p>
-                </div>
-              )}
-
-              {isDone && !isRunning && (
-                <div className="grid gap-3 p-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  {sceneAssets.map((asset) => (
-                    <div
-                      key={asset.id}
-                      className="group relative rounded-lg border border-border bg-surface-dim overflow-hidden"
-                    >
-                      <div
-                        className="aspect-square cursor-pointer bg-[repeating-conic-gradient(#e5e7eb_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]"
-                        onClick={() => setPreviewAsset(asset)}
-                      >
-                        {asset.original_png_url && (
-                          <img
-                            src={mediaUrl(asset.original_png_url)}
-                            alt={asset.layer_name || asset.asset_type}
-                            className="h-full w-full object-contain transition-opacity group-hover:opacity-90"
-                          />
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between px-2 py-1.5">
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-medium text-text-primary truncate">
-                            {asset.layer_name || ASSET_TYPE_LABELS[asset.asset_type] || asset.asset_type}
-                          </p>
-                          {asset.confidence_score != null && (
-                            <p className="text-[10px] text-text-muted">
-                              {Math.round(asset.confidence_score * 100)}%
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          {asset.user_approved ? (
-                            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
-                              <Check className="h-3 w-3" />
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                approveAsset(scene.id, asset.id)
-                                  .then(() => addToast("Asset approuvé", "success"))
-                                  .catch((e) => addToast(e.message, "error"));
-                              }}
-                              className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-emerald-50 hover:text-emerald-600"
-                              title="Approuver"
-                            >
-                              <Check className="h-3 w-3" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() =>
-                              setDeleteTarget({
-                                sceneId: scene.id,
-                                assetId: asset.id,
-                                name: asset.layer_name || asset.asset_type,
-                              })
-                            }
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted hover:bg-red-50 hover:text-red-500"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!isDone && !isRunning && !(job?.status === "failed") && (
-                <div className="flex items-center justify-center py-10 text-text-muted">
-                  <p className="text-xs">Cliquez sur <Scissors className="inline h-3.5 w-3.5 mx-0.5" /> pour segmenter</p>
-                </div>
-              )}
-            </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleSegment(scene.id)}
+                  disabled={!hasImage || busy}
+                  loading={busy}
+                >
+                  Lancer SAM3
+                </Button>
+              </CardBody>
+            </Card>
           );
         })}
       </div>
-
-      {/* Modal preview asset */}
-      {previewAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="absolute right-4 top-4 flex gap-2">
-            {previewAsset.original_png_url && (
-              <a
-                href={mediaUrl(previewAsset.original_png_url)}
-                download
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-                title="Télécharger"
-              >
-                <Download className="h-5 w-5" />
-              </a>
-            )}
-            <button
-              onClick={() => setPreviewAsset(null)}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="absolute inset-0" onClick={() => setPreviewAsset(null)} />
-
-          <div className="relative z-10 flex max-h-[90vh] max-w-[90vw] flex-col items-center">
-            <div className="rounded-lg bg-[repeating-conic-gradient(#374151_0%_25%,#1f2937_0%_50%)] bg-[length:20px_20px] p-2 shadow-2xl">
-              <img
-                src={mediaUrl(previewAsset.original_png_url)}
-                alt={previewAsset.layer_name || previewAsset.asset_type}
-                className="max-h-[80vh] max-w-full object-contain"
-              />
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <span className="rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-white">
-                {previewAsset.layer_name || ASSET_TYPE_LABELS[previewAsset.asset_type] || previewAsset.asset_type}
-              </span>
-              {previewAsset.mask_url && (
-                <a
-                  href={mediaUrl(previewAsset.mask_url)}
-                  download
-                  className="rounded-full bg-white/10 px-4 py-1.5 text-sm text-white/70 hover:bg-white/20 hover:text-white"
-                >
-                  <Layers className="mr-1 inline h-3.5 w-3.5" />
-                  Masque
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm suppression 1 asset */}
-      <ConfirmDialog
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
-        title="Supprimer l'asset"
-        message={`Supprimer « ${deleteTarget?.name} » ?`}
-        loading={deleting}
-      />
-
-      {/* Confirm vider tous les assets */}
-      <ConfirmDialog
-        isOpen={!!clearTarget}
-        onClose={() => setClearTarget(null)}
-        onConfirm={confirmClear}
-        title="Vider les assets"
-        message={`Supprimer tous les assets de la scène ${clearTarget?.index} ? Cette action est irréversible.`}
-        loading={clearing}
-      />
     </div>
   );
 }

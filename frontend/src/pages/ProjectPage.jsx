@@ -5,8 +5,8 @@ import {
   FileText,
   LayoutPanelTop,
   Image,
-  Scissors,
   Download,
+  Layers,
 } from "lucide-react";
 import Badge from "../components/ui/Badge";
 import Spinner from "../components/ui/Spinner";
@@ -20,7 +20,7 @@ const TABS = [
   { label: "Détails", to: "", icon: FileText, end: true },
   { label: "Storyboard", to: "storyboard", icon: LayoutPanelTop },
   { label: "Génération", to: "generation", icon: Image },
-  { label: "Segmentation", to: "segmentation", icon: Scissors },
+  { label: "Segmentation", to: "segmentation", icon: Layers },
   { label: "Export", to: "export", icon: Download },
 ];
 

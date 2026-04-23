@@ -5,8 +5,8 @@ import ProjectPage from "./pages/ProjectPage";
 import ProjectDetailsPage from "./pages/ProjectDetailsPage";
 import StoryboardPage from "./pages/StoryboardPage";
 import GenerationPage from "./pages/GenerationPage";
-import SegmentationPage from "./pages/SegmentationPage";
 import ExportPage from "./pages/ExportPage";
+import SegmentationPage from "./pages/SegmentationPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 // Point d'entree du routing de l'application
@@ -20,8 +20,8 @@ export default function App() {
             <Route index element={<ProjectDetailsPage />} />
             <Route path="storyboard" element={<StoryboardPage />} />
             <Route path="generation" element={<GenerationPage />} />
-            <Route path="segmentation" element={<SegmentationPage />} />
             <Route path="export" element={<ExportPage />} />
+            <Route path="segmentation" element={<SegmentationPage />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />

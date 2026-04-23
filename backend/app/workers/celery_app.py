@@ -28,7 +28,6 @@ celery_app.conf.update(
 
 celery_app.autodiscover_tasks([
     "app.workers.generation_tasks",
-    "app.workers.segmentation_tasks",
     "app.workers.vectorization_tasks",
     "app.workers.export_tasks",
 ])
