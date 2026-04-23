@@ -2,10 +2,11 @@ import asyncio
 import logging
 import uuid
 
+from replicate.exceptions import ReplicateError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.exceptions import NotFoundException, ValidationException
+from app.exceptions import ExternalServiceException, NotFoundException, ValidationException
 from app.integrations.sam3_client import (
     Sam3Client,
     join_prompts_for_replicate,
@@ -65,17 +66,20 @@ class Sam3SegmentationService:
         client = Sam3Client()
 
         def _call_sync() -> bytes:
-            out = client.run(
-                image_abs,
-                prompt_used,
-                mask_only=body.mask_only,
-                threshold=body.threshold,
-                mask_color=body.mask_color,
-                return_zip=body.return_zip,
-                mask_opacity=body.mask_opacity,
-                save_overlay=body.save_overlay,
-            )
-            return out.read_bytes()
+            try:
+                out = client.run(
+                    image_abs,
+                    prompt_used,
+                    mask_only=body.mask_only,
+                    threshold=body.threshold,
+                    mask_color=body.mask_color,
+                    return_zip=body.return_zip,
+                    mask_opacity=body.mask_opacity,
+                    save_overlay=body.save_overlay,
+                )
+                return out.read_bytes()
+            except ReplicateError as exc:
+                raise ExternalServiceException("Replicate", str(exc)) from exc
 
         zip_bytes = await asyncio.to_thread(_call_sync)
 

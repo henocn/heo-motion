@@ -12,8 +12,12 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-# Modele Replicate SAM3 (document officiel). Ajouter :<hash> pour figer une version.
-SAM3_REPLICATE_MODEL = "mattsays/sam3-image"
+# Modele Replicate SAM3 : version figee (evite POST .../models/.../predictions -> 404 sans version).
+# Derniere version listee sur https://replicate.com/mattsays/sam3-image/versions
+SAM3_REPLICATE_MODEL = (
+    "mattsays/sam3-image:"
+    "d73db077226443ba4fafd34e233b3626b552eac2a433f90c7c32a9ac89bd9e72"
+)
 
 
 #################################################
