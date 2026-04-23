@@ -10,13 +10,16 @@ const useUIStore = create((set) => ({
   openModal: (name, data = null) => set({ activeModal: name, modalData: data }),
   closeModal: () => set({ activeModal: null, modalData: null }),
 
-  // Ajoute un toast de notification (auto-supprime apres 4s)
-  addToast: (message, type = "info") => {
+  // Ajoute un toast (duree plus longue pour les erreurs si non surchargee)
+  addToast: (message, type = "info", options = {}) => {
     const id = Date.now();
+    const defaultMs = type === "error" ? 16000 : 4000;
+    const duration =
+      typeof options.duration === "number" ? options.duration : defaultMs;
     set((s) => ({ toasts: [...s.toasts, { id, message, type }] }));
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
-    }, 4000);
+    }, duration);
   },
 
   // Supprime un toast manuellement

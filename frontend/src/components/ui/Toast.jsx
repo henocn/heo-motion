@@ -19,10 +19,12 @@ export default function ToastContainer() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-lg shadow-black/5"
+          className="flex max-w-lg items-start gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-lg shadow-black/5"
         >
-          {ICONS[toast.type] || ICONS.info}
-          <span className="text-sm text-text-primary">{toast.message}</span>
+          <span className="mt-0.5 shrink-0">{ICONS[toast.type] || ICONS.info}</span>
+          <span className="min-w-0 flex-1 whitespace-pre-wrap break-words text-sm text-text-primary">
+            {toast.message}
+          </span>
           <button
             onClick={() => removeToast(toast.id)}
             className="ml-2 text-text-muted hover:text-text-secondary"

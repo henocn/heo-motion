@@ -79,7 +79,10 @@ class Sam3SegmentationService:
                 )
                 return out.read_bytes()
             except ReplicateError as exc:
-                raise ExternalServiceException("Replicate", str(exc)) from exc
+                # Message court pour le client (title/detail API) plutot que le dump __str__
+                parts = [p for p in (exc.title, exc.detail) if p]
+                brief = " ".join(parts) if parts else str(exc)
+                raise ExternalServiceException("Replicate", brief) from exc
 
         zip_bytes = await asyncio.to_thread(_call_sync)
 
