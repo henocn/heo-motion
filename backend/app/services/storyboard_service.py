@@ -12,42 +12,39 @@ from app.schemas.common import ProjectStatus
 from app.schemas.scene import SceneResponse
 
 
+
+
 logger = logging.getLogger(__name__)
 
 
-STORYBOARD_SYSTEM_PROMPT = """Tu es un directeur artistique spécialisé en motion design 2D (flat design, style institutionnel).
+STORYBOARD_SYSTEM_PROMPT = """Tu es directeur artistique pour une vidéo motion design corporate type « explainer » (institutionnel, lisible, personnages découpables).
 
-On te donne un script de voix off. Tu dois le découper en scènes visuelles pour une vidéo animée.
+On te donne un script de voix off. Tu le découpes en scènes VISUELLES dans l'ORDRE du montage : chaque scène enchaîne la précédente comme une suite logique (même univers, mêmes personnages réutilisés avec les MÊMES intitulés courts d'une scène à l'autre, objets récurrents si le texte le suppose).
 
-Pour chaque scène, tu dois fournir :
-- script_excerpt : le morceau de texte correspondant
-- visual_description : description détaillée de ce qu'on voit à l'écran
-- intention : l'émotion ou le message de la scène
-- shot_type : type de plan (wide shot, medium shot, close-up, etc.)
-- characters : liste des personnages présents (noms génériques : "homme", "femme", "enfant"...)
-- objects : liste des objets visibles
-- background : description du fond/décor
+Pour CHAQUE scène, renvoie exactement ces champs JSON :
+- script_excerpt : le passage de voix off couvert par la scène
+- visual_description : 2 à 4 phrases COURTES maximum (en français). Décris seulement ce que la caméra montre : qui fait quoi, où, avec quel objet clé. Ton sobre et professionnel, comme une ligne de storyboard pour motion designer — PAS une liste encyclopédique, PAS de répétition des champs characters/objects/background, PAS de catalogue de style (« vector », « flat design », « soft lighting », etc.) : le style sera géré ailleurs pour la génération d'images.
+- intention : une seule phrase (émotion ou message)
+- shot_type : un parmi wide shot | medium shot | close-up | over-the-shoulder (ou équivalent court en anglais si tu préfères)
+- characters : 1 à 4 entrées MAX, mots-clés ou très courtes étiquettes réutilisables (« homme costume bleu », « pharmacien blouse »)
+- objects : 1 à 5 entrées MAX, objets vraiment utiles à l'action ou à l'enchaînement
+- background : une seule courte phrase (décor / lieu), sans détailler chaque meuble
 
-IMPORTANT :
-- Les personnages doivent être en position simple (debout, face caméra ou 3/4) pour faciliter l'animation
-- Style flat design avec couleurs vives et formes géométriques simples
-- Chaque scène doit durer environ 3 à 8 secondes de voix off
-- Découpe de manière logique selon le sens du texte
+Règles de cohérence :
+- Varie les cadrages quand le sens du texte change, mais garde une continuité visuelle (palette et types de lieux cohérents sauf si le script impose un changement d'univers).
+- Poses simples (debout, 3/4, assis lisible) pour faciliter l'animation.
+- Durée indicative par scène : environ 3 à 8 secondes de voix off.
 
-Réponds UNIQUEMENT en JSON, un tableau d'objets. Pas de texte avant ou après.
+Réponds UNIQUEMENT avec un tableau JSON d'objets, sans markdown ni texte avant/après.
 
-Exemple de format :
-[
-  {
-    "script_excerpt": "...",
-    "visual_description": "...",
-    "intention": "...",
-    "shot_type": "medium shot",
-    "characters": ["homme"],
-    "objects": ["ordinateur"],
-    "background": "bureau moderne"
-  }
-]"""
+Exemple de niveau de concision pour visual_description :
+« Plan accueil : l'homme en costume tend une carte verte au client dont on voit la main. Comptoir blanc, écran en arrière-plan. »
+"""
+
+
+STORYBOARD_USER_PREFIX = (
+    "Les scènes ci-dessous sont dans l'ordre chronologique du film ; assure la continuité visuelle entre elles.\n\n"
+)
 
 
 #################################################
@@ -75,7 +72,7 @@ class StoryboardService:
         try:
             scenes_data = await self.llm.chat_json(
                 system_prompt=STORYBOARD_SYSTEM_PROMPT,
-                user_prompt=project.script_raw_text,
+                user_prompt=f"{STORYBOARD_USER_PREFIX}{project.script_raw_text}",
                 temperature=0.5,
             )
         except ValueError as e:

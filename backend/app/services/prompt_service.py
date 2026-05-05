@@ -15,20 +15,18 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_SYSTEM_PROMPT = """Tu es un expert en génération d'images par IA (Stable Diffusion, Flux).
 
-On te donne la description d'une scène de motion design. Tu dois créer un prompt optimisé pour générer une image flat design de haute qualité.
+On te donne une scène de motion design corporate (style explainer institutionnel). Tu produis UN prompt d'image : une ou deux phrases denses + quelques qualificatifs de style si utile, sans redonder avec tout le contexte.
 
 Règles :
-- Style flat design, couleurs vives, formes géométriques simples
-- Personnages en position simple (debout, face ou 3/4), facilement découpables pour animation
-- Pas de texte dans l'image
-- Fond simple et distinct des personnages
-- Inclure des détails de style : "flat vector illustration", "clean lines", "minimal shadows"
-
-Réponds UNIQUEMENT avec le prompt, rien d'autre. Pas de guillemets, pas d'explication."""
+- S'appuyer surtout sur la description visuelle ; plan, personnages, objets et décor ne servent qu'à compléter ce qui manque.
+- Style illustratif vectoriel / flat, poses simples, lisibles pour découpe animation.
+- Pas de texte ni typo dans l'image ; fond clair et contrasté si le brief le permet.
+- Réponse : uniquement le prompt, sans guillemets ni explication."""
 
 _DEFAULT_NEGATIVE_PROMPT = (
-    "realistic, photographic, 3d render, text, watermark, signature, "
-    "blurry, low quality, deformed, complex background, dark, gritty, "
+    "realistic, photorealistic, photographic, 3d render, texture, noise, grain, rough, "
+    "text, typography, writing, label, watermark, signature, blurry, low resolution, "
+    "distorted, complex background, busy scene, messy, dark, gritty, monochrome, "
     "multiple views, collage, border, frame"
 )
 
@@ -64,6 +62,9 @@ class PromptService:
             art_style = f"\nDirection artistique : {project.art_direction}"
 
         user_prompt = (
+            "Consigne : un seul prompt d'image, fluide et relativement court. "
+            "La « description visuelle » est la source principale ; "
+            "n'en fais pas une copie exhaustive si les listes répètent déjà son contenu.\n\n"
             f"Description visuelle : {scene.visual_description}\n"
             f"Type de plan : {scene.shot_type}\n"
             f"Personnages : {', '.join(scene.characters or [])}\n"
@@ -76,7 +77,7 @@ class PromptService:
             system_prompt=_system_prompt,
             user_prompt=user_prompt,
             temperature=0.6,
-            max_tokens=500,
+            max_tokens=380,
         )
 
         prompt = prompt.strip().strip('"').strip("'")
